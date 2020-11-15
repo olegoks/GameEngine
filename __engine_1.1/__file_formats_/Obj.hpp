@@ -2,46 +2,19 @@
 #ifndef _OBJ_H_
 #define _OBJ_H_
 
+#include "..\engine_types.hpp"
+
 #include <string>
+template<class ResultType>
+ResultType ConvertStrTo(const std::string& str)noexcept(true);
+
 #include <sstream>
 #include <fstream>
 #include <iomanip>
 #include <cmath>
 #include <iostream>
 #include <regex>
-#include "..\engine_types.hpp"
 #include <memory>
-
-static const std::string kSpace{ " " };
-
-
-// StrReg = string regular expression, no std::regex
-static const std::string kFloatStrReg{ "([0-9]+.[0-9]+)" };
-static const std::string kSize_tStrReg{ "([0-9]+)" };
-static const std::string kHexRgbColorStrReg{ "([a-f0-9]{1,6})" };
-static const std::string kRatioStrReg{ "(" + kSize_tStrReg + "//" + kSize_tStrReg + ")" };
-static const std::string kVertexsStrReg{ "(v" + kSpace + kFloatStrReg + kSpace + kFloatStrReg + kSpace + kFloatStrReg + ")" };
-static const std::string kNormalsStrReg{ "(vn" + kSpace + kFloatStrReg + kSpace + kFloatStrReg + kSpace + kFloatStrReg + ")" };
-static const std::string kPolygonsStrReg{ "(f" + kSpace + kRatioStrReg + kSpace + kRatioStrReg + kSpace + kRatioStrReg + ")" };
-static const std::string kRgbColorStrReg{ "(usemtl" + kSpace + kHexRgbColorStrReg + ")" };
-
-static const std::regex kVertexsLineReg{ kVertexsStrReg };
-static const std::regex kNormalsLineReg{ kNormalsStrReg };
-static const std::regex kPolygonsLineReg{ kPolygonsStrReg };
-static const std::regex kRgbColorLineReg{ kRgbColorStrReg };
-
-static const char kRetCarr = 'r';
-static const size_t kFirst = 0;
-
-enum class Primitive:uint8_t {
-
-	VERTEX,
-	NORMAL,
-	POLYGON,
-	RGB_COLOR,
-	RESERVED
-
-};
 
 class ObjFile final{
 
@@ -51,96 +24,84 @@ private:
 	ArrayOf<Normal3D> normals_;
 	ArrayOf<Polygon3D> polygons_;
 	ArrayOf<RgbColor> rgb_colors_;
+
+	//Number of lines in .obj file. Need for counting % loading.
 	size_t n_of_lines_;
 	std::string file_name_;
 	std::ifstream* file_object_;
 
-	void ReserveMemory()noexcept(true);
-	void CopyData();
-
 	template<class PrimitiveType>
 	PrimitiveType ProcessLine(const std::string& line)const noexcept(true);
+	template<class PrimitiveType>
+	PrimitiveType ProcessPrimitive(const std::string& primitive_line)const noexcept(true);
 	inline Primitive PrimitiveType(const std::string& line)const noexcept(true);
-	void ReadFile();
+	
+protected:
+	void ReserveMemory()noexcept(true);
+	void Output(const std::string& output)const noexcept(true);
 
+	//String constants for creation regular expressions
+	static const std::string kSpace;
+	static const std::string kRetCarr;
+	static const size_t kFirst;
+	static const size_t kHexColorStrLen;
+	template<class PrimitiveType>
+	static const std::string kCompStrRegExpr;
+	template<class PrimtiveType>
+	static const std::string kStrRegExpr;
+	template<class PrimtiveType>
+	static const std::string kLineStrRegExpr;
 
 public:
 
-	class FileOpenException {
-	public:
-
-		int codeError;
-		const char* fileName;
-
-		FileOpenException(int openCodeError, const char* unopenedFileName):
-			codeError(openCodeError),
-			fileName(unopenedFileName) {
-		
-		}
-
-	};
-
-	class AllocationMemoryException {};
-	class DoubleReadingFileException {
-	public:
-		const char* firstFileName;
-		const char* secondFileName;
-
-		DoubleReadingFileException(const char* firstFileName, const char* secondFileName) {
-
-			this->firstFileName = firstFileName;
-			this->secondFileName = secondFileName;
-
-		}
-	};
-	
 	explicit ObjFile(const std::string&& file_name)noexcept(true);
 	~ObjFile();
+
 	void Open()noexcept(true);
+	void Read()noexcept(true);
+	void Close()noexcept(true);
+
+	template<class PrimitiveType>
+	inline PrimitiveType* const Ptr()noexcept(true) { return nullptr;};
 
 };
-
 #endif
 
-template<class ComponentType>
-inline ComponentType ProcessElement(const std::string&& element_str)noexcept(true){
+//Specializations for template function Ptr()
+template<>
+inline Vertex3D* const ObjFile::Ptr<Vertex3D>()noexcept(true) { return vertexs_.Ptr(); };
+template<>
+inline Normal3D* const ObjFile::Ptr<Normal3D>()noexcept(true) { return normals_.Ptr(); };
+template<>
+inline Polygon3D* const ObjFile::Ptr<Polygon3D>()noexcept(true) { return polygons_.Ptr(); };
+template<>
+inline RgbColor* const ObjFile::Ptr<RgbColor>()noexcept(true) { return rgb_colors_.Ptr(); };
 
-	std::stringstream convert{ element_str };
-	ComponentType component;
-	convert >> component;
+//Primitive component StrReg
+template<class PrimitiveType>
+const std::string ObjFile::kCompStrRegExpr{ "(.*)" };
 
-	return component;
-}
+//Primitive StrReg
+template<class PrimtiveType>
+const std::string ObjFile::kStrRegExpr{ "(.*)" };
+
+//Primitive line regular expression
+template<class PrimtiveType>
+const std::string ObjFile::kLineStrRegExpr{ "(.*)" };
 
 template<class PrimitiveType>
-inline PrimitiveType ObjFile::ProcessLine(const std::string& line) const noexcept(true) {
+PrimitiveType ObjFile::ProcessLine(const std::string& line) const noexcept(true) {
 
-	/*PrimitiveType result{};*/
+	const std::regex reg_expr{ kStrRegExpr<PrimitiveType> };
+	std::smatch result;
+	std::regex_search(line, result, reg_expr);
+	std::string result_str = result.str();
 
+	return ProcessPrimitive<PrimitiveType>(result_str);
+}
 
-
+template <class PrimitiveType>
+PrimitiveType ObjFile::ProcessPrimitive(const std::string& primitive_line)const noexcept(true) {
 
 	return PrimitiveType();
 }
-
-template<>
-inline Ratio ProcessElement<Ratio>(const std::string&& element_str)noexcept(true) {
-
-	std::stringstream convert{ element_str.substr(std::ios::beg, element_str.find('/')) };
-	Ratio component;
-	convert >> component.vertex_n;
-	size_t lst_pos = element_str.rfind('/');
-	convert << element_str.substr(lst_pos, element_str.length() - 1 - lst_pos);
-	convert >> component.vertex_n;
-	return component;
-
-}
-
-template<>
-inline RgbColor ProcessElement<RgbColor>(const std::string&& element_str)noexcept(true) {
-
-	
-	return RgbColor{};
-
-}
-

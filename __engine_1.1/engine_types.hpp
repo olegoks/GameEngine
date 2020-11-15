@@ -2,6 +2,8 @@
 #ifndef ENGINE_TYPES_HPP_
 #define ENGINE_TYPES_HPP_
 
+#include <cstdint>
+
 struct Ratio {
 
 	unsigned int vertex_n;
@@ -11,18 +13,37 @@ struct Ratio {
 
 struct RgbColor {
 
-	unsigned char	rgb_blue;
-	unsigned char   rgb_green;
-	unsigned char   rgb_red;
-	unsigned char   rgb_reserved;
+	union {
+
+		struct {
+			uint8_t	rgb_blue;
+			uint8_t	rgb_green;
+			uint8_t	rgb_red;
+			uint8_t	rgb_reserved;
+		};
+
+		unsigned char rgba[4];
+
+	};
 
 };
 
-struct RgbPixel {
-	unsigned char	rgb_blue;
-	unsigned char   rgb_green;
-	unsigned char   rgb_red;
-	unsigned char   rgb_reserved;
+struct RgbPixel: public RgbColor {
+
+
+};
+
+enum class Primitive:uint8_t {
+
+	VERTEX,
+	NORMAL,
+	POLYGON,
+	RGB_COLOR,
+	RESERVED_0,
+	RESERVED_1,
+	RESERVED_2,
+	RESERVED_3
+
 };
 
 struct Polygon3D {
@@ -36,19 +57,38 @@ struct Vertex3D {
 
 	Vertex3D() : x(0.0f), y(0.0f), z(0.0f) {};
 	Vertex3D(float x_, float y_, float z_) noexcept : x(x_), y(y_), z(z_) {};
-	float x;
-	float y;
-	float z;
 
+	union {
+
+		struct {
+
+			float x;
+			float y;
+			float z;
+
+		};
+
+		float xyz[3];
+	};
 };
 
 struct Normal3D {
 
 	inline Normal3D() noexcept : x(0.0f), y(0.0f), z(0.0f) {};
 	inline Normal3D(float x_, float y_, float z_) noexcept : x(x_), y(y_), z(z_) {};
-	float x;
-	float y;
-	float z;
+
+	union {
+
+		struct {
+
+			float x;
+			float y;
+			float z;
+
+		};
+
+		float xyz[3];
+	};
 
 };
 
@@ -75,6 +115,7 @@ protected:
 
 public:
 
+	virtual inline bool Empty()const noexcept(true) { return (Size() == 0); }
 	virtual inline size_t Capacity()const noexcept(true) final { return capacity_; };
 	virtual void Concat(const void* const ptr, const size_t size)noexcept(true) = 0;
 	virtual inline size_t Size()const noexcept(true) final { return size_; };
@@ -83,7 +124,7 @@ public:
 };
 
 template<class DataType>
-class ArrayOf : private Array {
+class ArrayOf : public Array {
 private:
 
 	DataType* ptr_;
@@ -94,39 +135,99 @@ protected:
 
 public:
 
-	inline const DataType* const GetPtr()const noexcept(true)  { return ptr_; };
+	inline DataType* const Ptr()noexcept(true)  { return ptr_; };
+	inline void Clear()noexcept(true) { if(ptr_ != nullptr)delete[] ptr_; }
+	ArrayOf& operator=(const ArrayOf& arr)noexcept(true) = delete;
+	ArrayOf&& operator=(ArrayOf&& arr)noexcept(true) = delete;
+	explicit ArrayOf(const ArrayOf& arr)noexcept(true) = delete;
+	explicit ArrayOf(ArrayOf&& arr)noexcept(true) = delete;
 
 	explicit ArrayOf(DataType* const ptr, const size_t size)noexcept(true):
 		Array{ (ptr != nullptr) ? (size) : (0) },
 		ptr_{ ptr }{}
+
+	explicit ArrayOf()noexcept(true):
+		Array{ 0 },
+		ptr_{ nullptr }{}
 	
 	inline DataType& operator[](const size_t index)const noexcept(true) { return *(ptr_ + index); };
 
 	void Reserve(const size_t new_capacity) noexcept(true) {
 
-		DataType* const new_ptr = (DataType* const) new DataType[new_capacity];
-		const size_t last_index = ( (new_capacity >= BaseClass::Size()) ? (BaseClass::Size()) : (new_capacity) ) - 1;
+		if (BaseClass::Capacity() < new_capacity) {
 
-		for (size_t index = 0; index <= last_index; index++)
-			*(new_ptr + index) = *(ptr_ + index);
+			DataType* const new_ptr = (DataType* const) new DataType[new_capacity];
+			const size_t cpy_end = BaseClass::Size();
 
-		BaseClass::SetCapacity(new_capacity);
-		if (ptr_ != nullptr) delete[] ptr_;
-		ptr_ = new_ptr;
+			for (size_t i = 0; i < cpy_end; i++){
+
+				new_ptr[i] = ptr_[i];
+
+			}
+
+			Clear();
+			ptr_ = new_ptr;
+
+			BaseClass::SetCapacity(new_capacity);
+
+		}
 
 	};
 
 	void Concat(const void* const ptr, const size_t size)noexcept(true) override{
 
 		const DataType* const concat_ptr = reinterpret_cast<const DataType* const>(ptr);
-		const size_t new_size = BaseClass::Size() + size;
-		Reserve(new_size);
-		const size_t first_index = BaseClass::Size();
+		const size_t final_size = BaseClass::Size() + size;
 
-		for (size_t i = first_index, j = 0; j < size; j++, i++)
-			operator[](i) = concat_ptr[j];
+		if (final_size <= BaseClass::Capacity()) {
 
-		BaseClass::SetSize(new_size);
+			const size_t cpy_start = BaseClass::Size();
+
+			for (size_t i = cpy_start, j = 0; j < size; i++, j++){
+
+				ptr_[i] = concat_ptr[j];
+
+			}
+
+			BaseClass::SetSize(final_size);
+
+		}
+		else {
+
+			DataType* const new_ptr = (DataType* const) new DataType[final_size];
+
+			for (size_t i = 0; i < BaseClass::Size(); i++){
+
+				new_ptr[i] = ptr_[i];
+
+			}
+
+			const size_t cpy_start = BaseClass::Size();
+
+			for (size_t i = cpy_start, j = 0; j < size; i++, j++) {
+
+				new_ptr[i] = concat_ptr[j];
+
+			}
+
+			Clear();
+			ptr_ = new_ptr;
+
+		}
+
+	}
+
+	void PushBack(const DataType& data)noexcept(true){
+
+		if (BaseClass::Size() + 1 > BaseClass::Capacity())
+			Reserve(BaseClass::Capacity() + 1);
+		
+		if(Empty())
+			ptr_[0] = data;
+		else
+			ptr_[BaseClass::Size() - 1] = data;
+
+		BaseClass::SetSize(BaseClass::Size() + 1);
 
 	}
 

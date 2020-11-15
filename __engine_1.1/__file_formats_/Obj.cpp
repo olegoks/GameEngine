@@ -1,52 +1,93 @@
 #include "Obj.hpp"
 #pragma warning(disable : 6386)
 
+const std::string ObjFile::kSpace{ " " };
+const std::string ObjFile::kRetCarr{ "\r" };
+const size_t ObjFile::kFirst = 0;
+const size_t ObjFile::kHexColorStrLen = 6;
+
+//Comp == component
+//StrRegExpr == string of regular expression
+
+//Primitive component StrReg
+template<>
+const std::string ObjFile::kCompStrRegExpr<Vertex3D> = "([-]{0,1}[0-9]+.[0-9]+)";
+template<>
+const std::string ObjFile::kCompStrRegExpr<Normal3D> = kCompStrRegExpr<Vertex3D>;
+template<>
+const std::string ObjFile::kCompStrRegExpr<Polygon3D> = "(([0-9] + )//([0-9] + ))";
+template<>
+const std::string ObjFile::kCompStrRegExpr<RgbColor> = "([0-9a-z]{2})";
+
+//Primitive StrReg
+template<>
+const std::string ObjFile::kStrRegExpr<Vertex3D>{ kCompStrRegExpr<Vertex3D> +kSpace + kCompStrRegExpr<Vertex3D> +kSpace + kCompStrRegExpr<Vertex3D> };
+template<>
+const std::string ObjFile::kStrRegExpr<Normal3D>{ kCompStrRegExpr<Normal3D> +kSpace + kCompStrRegExpr<Normal3D> +kSpace + kCompStrRegExpr<Normal3D>};
+template<>
+const std::string ObjFile::kStrRegExpr<Polygon3D>{ kCompStrRegExpr<Polygon3D> +kSpace + kCompStrRegExpr<Polygon3D> +kSpace + kCompStrRegExpr<Polygon3D>};
+template<>
+const std::string ObjFile::kStrRegExpr<RgbColor>{ kCompStrRegExpr<RgbColor> +kCompStrRegExpr<RgbColor> +kCompStrRegExpr<RgbColor>};
+
+//Primitive line regular expression
+template<>
+const std::string ObjFile::kLineStrRegExpr<Vertex3D> { "(v" + kSpace + kStrRegExpr<Vertex3D> +")" };
+template<>
+const std::string ObjFile::kLineStrRegExpr<Normal3D> { "(vn" + kSpace + kStrRegExpr<Normal3D> +")" };
+template<>
+const std::string ObjFile::kLineStrRegExpr<Polygon3D> { "(f" + kSpace + kStrRegExpr<Polygon3D> +")" };
+template<>
+const std::string ObjFile::kLineStrRegExpr<RgbColor> { "(usemtl" + kSpace + kStrRegExpr<RgbColor>+")" };
+
+
+Primitive ObjFile::PrimitiveType(const std::string& line) const noexcept(true)
+{
+	std::string str_v{ kLineStrRegExpr<Vertex3D> };
+	std::string str_n{ kLineStrRegExpr<Normal3D> };
+	std::string str_p{ kLineStrRegExpr<Polygon3D> };
+	std::string str_r{ kLineStrRegExpr<RgbColor> };
+
+	if (std::regex_match(line, std::regex{ kLineStrRegExpr<Vertex3D> }))
+		return Primitive::VERTEX;
+	else
+		if (std::regex_match(line, std::regex{ kLineStrRegExpr<Normal3D> }))
+			return Primitive::NORMAL;
+		else
+			if (std::regex_match(line, std::regex{ kLineStrRegExpr<Polygon3D> }))
+				return Primitive::POLYGON;
+			else
+				if (std::regex_match(line, std::regex{ kLineStrRegExpr<RgbColor> }))
+					return Primitive::RGB_COLOR;
+				else
+					// ...
+					return Primitive::RESERVED_0;
+
+}
+
+
 ObjFile::ObjFile(const std::string&& file_name)noexcept(true):
 	file_name_{ file_name },
 	vertexs_{ nullptr, 0 },
 	normals_{ nullptr, 0 },
 	polygons_{ nullptr, 0 },
 	rgb_colors_{ nullptr, 0 },
-	file_object_{ (std::ifstream*) new std::ifstream }{
+	file_object_{ (std::ifstream*) new std::ifstream },
+	n_of_lines_{ 0 }{
 
 	
-	file_object_->open(file_name_, std::ios::in, std::ios::_Nocreate);
+	
 
 }
 
-ObjFile::~ObjFile()
-{
+ObjFile::~ObjFile(){
 
-	file_object_->close();
+	//...
 
 }
 
 void ObjFile::Open()noexcept(true) {
 	
-	ReserveMemory();
-
-}
-inline Primitive ObjFile::PrimitiveType(const std::string& line) const noexcept(true)
-{
-	if (std::regex_match(line, kVertexsLineReg))
-		return Primitive::VERTEX;
-	else
-		if (std::regex_match(line, kNormalsLineReg))
-			return Primitive::NORMAL;
-		else
-			if (std::regex_match(line, kPolygonsLineReg))
-				return Primitive::POLYGON;
-			else
-				if (std::regex_match(line, kRgbColorLineReg))
-					return Primitive::RGB_COLOR;
-				else
-					return Primitive::RESERVED;
-
-};
-
-void ObjFile::ReadFile() {
-
-
+	file_object_->open(file_name_, std::ios::in, std::ios::_Nocreate);
 
 }
 
@@ -54,16 +95,14 @@ void ObjFile::ReserveMemory()noexcept(true){
 
 	std::string line;
 	size_t n_of_vertexs = 0, n_of_normals = 0, n_of_polygons = 0, n_of_rgb_colors = 0;
-
 	n_of_lines_ = 0;
 
-	while (getline(*file_object_, line)) {
+	while (std::getline(*file_object_, line)) {
 
 		n_of_lines_++; 
+		Output(std::string{ std::to_string(n_of_lines_) + kRetCarr });
 
-		const Primitive primitive = PrimitiveType(line);
-
-		switch (primitive) {
+		switch (PrimitiveType(line)) {
 
 		case Primitive::VERTEX:
 			n_of_vertexs++;
@@ -77,10 +116,13 @@ void ObjFile::ReserveMemory()noexcept(true){
 		case Primitive::RGB_COLOR:
 			n_of_rgb_colors++;
 			break;
+
+		//...
+
 		}
-		
+
 	}
-	
+
 	vertexs_.Reserve(n_of_vertexs);
 	normals_.Reserve(n_of_normals);
 	polygons_.Reserve(n_of_polygons);
@@ -88,214 +130,144 @@ void ObjFile::ReserveMemory()noexcept(true){
 
 }
 
-void ObjFile::CopyData() {
+void ObjFile::Read() noexcept(true) {
+
+	Output("Loading file: " + file_name_);
+	Output("\n");
+
+	ReserveMemory();
 
 	std::string line;
-	std::string designation;
 	file_object_->clear();
-	file_object_->seekg(std::ios::beg);
-
-	unsigned int n_of_current_line = 0;
-	
-	std::cout << "Loading file : " << file_name_ << std::endl;
+	file_object_->seekg(0, std::ios::beg);
+	size_t n_of_read_lines = 0;
 
 	while (std::getline(*file_object_, line)) {
 
-		n_of_current_line++;
-		std::cout.setf(std::ios::right);
-		const unsigned int load_progress = round(static_cast<float>(n_of_current_line) / (static_cast<float>(n_of_lines_) * 100));
-		std::cout << kRetCarr << std::setw(5)  << load_progress << '%';
-		designation = line.substr(std::ios::beg, 2);
+		n_of_read_lines++;
+		
+		const size_t load_progress = round( ( static_cast<float>(n_of_read_lines) / static_cast<float>(n_of_lines_) ) * static_cast<float>(100) );
+		
+		Output(kRetCarr + std::to_string(load_progress) + "%");
 
-		/*if (designation == kVertexs) { 
+		const Primitive primitive = PrimitiveType(line);
 
-			std::unique_ptr< ArrayOf< Vertex3D > > vertexs;
-			vertexs = ProcessVertexs(line); 
-			vertexs_.Concat(vertexs->GetPtr(), vertexs->);
+		switch (primitive) {
+
+		case Primitive::VERTEX: {
+
+			const Vertex3D vertex = ProcessLine<Vertex3D>(line);
+			vertexs_.PushBack(vertex);
+			break;
+		}
+		case Primitive::NORMAL: {
+
+			const Normal3D normal = ProcessLine<Normal3D>(line);
+			normals_.PushBack(normal);
+			break;
+		}
+		case Primitive::POLYGON: {
+
+			const Polygon3D polygon = ProcessLine<Polygon3D>(line);
+			polygons_.PushBack(polygon);
+			break;
+		}
+		case Primitive::RGB_COLOR: {
+
+			const RgbColor rgb_color = ProcessLine<RgbColor>(line);
+			rgb_colors_.PushBack(rgb_color);
+			break;
+		}
+
+			//...
 
 		}
-		else
-			if (designation == "vn") ProcessLineWithNormal(line);
-			else
-				if (designation == "f ") ProcessLineWithPolygon(line);
-				else
-					if (designation == "us") ProcessLineWithRgbColor(line);*/
 
 	}
 
-	std::cout << std::endl;
+}
+
+void ObjFile::Close()noexcept(true){
+
+	file_object_->close();
+	delete file_object_;
 
 }
-//std::unique_ptr<ArrayOf<Vertex3D>> ObjFile::ProcessVertexs(std::string& line)const noexcept(true) {
-//
-//	line.erase(0, 2);
-//	line.push_back(' ');
-//
-//	std::stringstream stream;
-//	size_t pos;
-//	std::string str_float;
-//
-//	std::unique_ptr<ArrayOf<Vertex3D>> vertexs{ std::make_unique< ArrayOf<Vertex3D> >() };
-//	vertexs->Reserve(1);
-//	float xyz[3];
-//
-//	for (size_t i = 0; i < 3; i++){
-//
-//		pos = line.find(kSpace);
-//
-//		for (size_t j = 0; j < pos; j++)
-//			str_float.push_back( line[i] );
-//
-//		line.erase(std::ios::beg, pos + 1);
-//
-//		stream << str_float;
-//		stream >> xyz[i];
-//
-//	}
-//
-//	(*vertexs)[kFirst].x = xyz[0];
-//	(*vertexs)[kFirst].y = xyz[1];
-//	(*vertexs)[kFirst].z = xyz[2];
-//	   
-//	return std::move(vertexs);
-//}
-//
-//void ObjFile::ProcessLineWithNormal(std::string& newLine)noexcept(true) {
-//
-//	newLine->erase(0, 3);
-//	newLine->push_back(' ');
-//
-//	std::stringstream stream;
-//
-//	size_t pos;
-//	std::string strFloat;
-//	float xyz[3];
-//
-//	for (size_t j = 0; j < 3; j++)
-//	{
-//		pos = newLine->find(' ');
-//
-//		strFloat.clear();
-//		for (size_t i = 0; i < pos; i++) {
-//
-//			strFloat += newLine->at(i);
-//
-//		}
-//
-//		newLine->erase(0, pos + 1);
-//
-//		stream << strFloat;
-//		stream >> xyz[j];
-//		stream.clear();
-//
-//	}
-//
-//	normals[currentNumberOfNormals].x = xyz[0];
-//	normals[currentNumberOfNormals].y = xyz[1];
-//	normals[currentNumberOfNormals].z = xyz[2];
-//
-//	currentNumberOfNormals++;
-//
-//}
-//void ObjFile::ProcessLineWithPolygon(string* newLine) {
-//	
-//	newLine->erase(0, 2);
-//	newLine->push_back(' ');
-//
-//	unsigned int pos;
-//	std::string strInt;
-//	std::stringstream stream;
-//
-//	for (size_t i = 0; i < 3; i++)
-//	{
-//		pos = newLine->find('/');
-//
-//		strInt.clear();
-//		for (size_t j = 0; j < pos; j++)
-//		{
-//			strInt += newLine->at(j);
-//		}
-//
-//		stream.clear();
-//		stream << strInt;
-//		stream >> this->polygons[currentNumberOfPolygons].ratios[i].vertexNumber;
-//
-//		newLine->erase(0, pos + 1);
-//		pos = newLine->find('/');
-//		newLine->erase(0, pos + 1);
-//
-//		pos = newLine->find(' ');
-//
-//		strInt.clear();
-//		for (size_t j = 0; j < pos; j++)
-//		{
-//			strInt += newLine->at(j);
-//		}
-//
-//
-//		stream.clear();
-//		stream << strInt;
-//		stream >> polygons[currentNumberOfPolygons].ratios[i].normalNumber;
-//
-//		newLine->erase(0, pos + 1);
-//	}
-//
-//	polygons[currentNumberOfPolygons].color = (RgbPixel)current_polygon_color_;
-//	this->currentNumberOfPolygons++;
-//
-//}
-//void ObjFile::ProcessLineWithRgbColor(string* newLine) {
-//
-//	newLine->erase(0, 7);
-//	unsigned int length_of_the_line = newLine->size();
-//
-//	if (length_of_the_line <= 6) {
-//
-//		if (length_of_the_line < 6) {
-//			for (size_t i = 0; i <  6 - length_of_the_line; i++) newLine->insert(0, "0");	
-//		}
-//
-//		this->rgbColors[this->currentNumberOfRgbColors];
-//		std::string strRGB;
-//		unsigned int intTemp;
-//		std::stringstream convertStream;
-//
-//		for (size_t i = 0; i < 6 - length_of_the_line; i++)
-//		{
-//			(*newLine) = "0" + (*newLine);
-//		}
-//
-//		//R
-//		strRGB = newLine->substr(0, 2);
-//		convertStream << strRGB;
-//		convertStream >> std::hex >> intTemp;
-//		convertStream.clear();
-//		//rgbColors[currentNumberOfRgbColors].rgb_red = intTemp;
-//		current_polygon_color_.rgb_red = intTemp;
-//		//G
-//		strRGB = newLine->substr(2, 2);
-//		convertStream << strRGB;
-//		convertStream >> std::hex >> intTemp;
-//		convertStream.clear();
-//		//rgbColors[currentNumberOfRgbColors].rgb_green = intTemp;
-//		current_polygon_color_.rgb_green = intTemp;
-//		//B
-//		strRGB = newLine->substr(4, 2);
-//		convertStream << strRGB;
-//		convertStream >> std::hex >> intTemp;
-//		convertStream.clear();
-//
-//		//rgbColors[currentNumberOfRgbColors].rgb_blue = intTemp;
-//		current_polygon_color_.rgb_blue= intTemp;
-//		currentNumberOfRgbColors++;
-//	}
-//	else
-//	{
-//		
-//		rgbColors[currentNumberOfRgbColors].rgb_red = 0;
-//		rgbColors[currentNumberOfRgbColors].rgb_green = 0;
-//		rgbColors[currentNumberOfRgbColors].rgb_blue = 0;
-//
-//	}
-//}
+
+void ObjFile::Output(const std::string& output) const noexcept(true) {
+
+	std::cout << output;
+
+};
+
+template<class ResultType>
+ResultType ConvertStrTo(const std::string& str)noexcept(true) {
+
+	std::stringstream convert{ str };
+	ResultType result;
+	convert >> result;
+
+	return result;
+
+}
+
+
+template<>
+Vertex3D ObjFile::ProcessPrimitive<Vertex3D>(const std::string& primitive_line)const noexcept(true) {
+
+	const std::regex reg_expr{ kCompStrRegExpr<Vertex3D> };
+	std::smatch reg_result;
+	std::stringstream convert;
+	std::regex_search(primitive_line, reg_result, reg_expr);
+
+	Vertex3D vertex;
+
+	vertex.x = ConvertStrTo<double>(reg_result[0]);
+	vertex.y = ConvertStrTo<double>(reg_result[1]);
+	vertex.z = ConvertStrTo<double>(reg_result[2]);
+
+	return vertex;
+}
+
+template<>
+Normal3D ObjFile::ProcessPrimitive<Normal3D>(const std::string& primitive_line)const noexcept(true) {
+
+	const std::regex reg_expr{ kCompStrRegExpr<Vertex3D> };
+	std::smatch reg_result;
+	std::stringstream convert;
+	std::regex_search(primitive_line, reg_result, reg_expr);
+
+	Normal3D normal;
+
+	normal.x = ConvertStrTo<double>(reg_result[0]);
+	normal.y = ConvertStrTo<double>(reg_result[1]);
+	normal.z = ConvertStrTo<double>(reg_result[2]);
+
+	return normal;
+}
+
+template<>
+Polygon3D ObjFile::ProcessPrimitive<Polygon3D>(const std::string& primitive_str)const noexcept(true) {
+
+	const std::regex reg_expr{ kCompStrRegExpr<Polygon3D> };
+	std::smatch reg_result;
+	std::stringstream convert;
+	std::regex_search(primitive_str, reg_result, reg_expr);
+
+	std::smatch result;
+	std::regex size_t_regex{ kCompStrRegExpr<RgbColor> };
+	Polygon3D polygon;
+	std::string size_t_str;
+
+	for (size_t i = 0; i < 3; i++) {
+
+		size_t_str = reg_result[i].str();
+		std::regex_search(size_t_str, result, size_t_regex);
+		polygon.ratios[i].vertex_n = ConvertStrTo<size_t>(result[0]);
+		polygon.ratios[i].normal_n = ConvertStrTo<size_t>(result[1]);
+
+	}
+
+	return polygon;
+}
 
