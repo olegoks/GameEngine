@@ -15,9 +15,9 @@ const std::string ObjFile::kCompStrRegExpr<Vertex3D> = "([-]{0,1}[0-9]+.[0-9]+)"
 template<>
 const std::string ObjFile::kCompStrRegExpr<Normal3D> = kCompStrRegExpr<Vertex3D>;
 template<>
-const std::string ObjFile::kCompStrRegExpr<Polygon3D> = "(([0-9] + )//([0-9] + ))";
+const std::string ObjFile::kCompStrRegExpr<Polygon3D> = "(([0-9]+)//([0-9]+))";
 template<>
-const std::string ObjFile::kCompStrRegExpr<RgbColor> = "([0-9a-z]{2})";
+const std::string ObjFile::kCompStrRegExpr<RgbColor> = "([0-9a-f]{2})";
 
 //Primitive StrReg
 template<>
@@ -35,7 +35,7 @@ const std::string ObjFile::kLineStrRegExpr<Vertex3D> { "(v" + kSpace + kStrRegEx
 template<>
 const std::string ObjFile::kLineStrRegExpr<Normal3D> { "(vn" + kSpace + kStrRegExpr<Normal3D> +")" };
 template<>
-const std::string ObjFile::kLineStrRegExpr<Polygon3D> { "(f" + kSpace + kStrRegExpr<Polygon3D> +")" };
+const std::string ObjFile::kLineStrRegExpr<Polygon3D> { "(f[ ]?"+ kSpace + kStrRegExpr<Polygon3D> +")" };
 template<>
 const std::string ObjFile::kLineStrRegExpr<RgbColor> { "(usemtl" + kSpace + kStrRegExpr<RgbColor>+")" };
 
@@ -64,18 +64,11 @@ Primitive ObjFile::PrimitiveType(const std::string& line) const noexcept(true)
 
 }
 
-
-ObjFile::ObjFile(const std::string&& file_name)noexcept(true):
+ObjFile::ObjFile(const std::string& file_name)noexcept(true):
 	file_name_{ file_name },
-	vertexs_{ nullptr, 0 },
-	normals_{ nullptr, 0 },
-	polygons_{ nullptr, 0 },
-	rgb_colors_{ nullptr, 0 },
+	data_{},
 	file_object_{ (std::ifstream*) new std::ifstream },
 	n_of_lines_{ 0 }{
-
-	
-	
 
 }
 
@@ -123,11 +116,11 @@ void ObjFile::ReserveMemory()noexcept(true){
 
 	}
 
-	vertexs_.Reserve(n_of_vertexs);
-	normals_.Reserve(n_of_normals);
-	polygons_.Reserve(n_of_polygons);
-	rgb_colors_.Reserve(n_of_rgb_colors);
-
+	data_.Get<Vertex3D>().Reserve(n_of_vertexs);
+	data_.Get<Normal3D>().Reserve(n_of_normals);
+	data_.Get<Polygon3D>().Reserve(n_of_polygons);
+	data_.Get<RgbColor>().Reserve(n_of_rgb_colors);
+	//...
 }
 
 void ObjFile::Read() noexcept(true) {
@@ -147,39 +140,43 @@ void ObjFile::Read() noexcept(true) {
 		n_of_read_lines++;
 		
 		const size_t load_progress = round( ( static_cast<float>(n_of_read_lines) / static_cast<float>(n_of_lines_) ) * static_cast<float>(100) );
-		
 		Output(kRetCarr + std::to_string(load_progress) + "%");
-
 		const Primitive primitive = PrimitiveType(line);
 
-		switch (primitive) {
+		//In function ProcessLine line can be changed! 
+		//Not-const reference parametr.
 
+		switch (primitive) {
 		case Primitive::VERTEX: {
 
 			const Vertex3D vertex = ProcessLine<Vertex3D>(line);
-			vertexs_.PushBack(vertex);
+			data_.Get<Vertex3D>().PushBack(vertex);
+
 			break;
 		}
 		case Primitive::NORMAL: {
 
 			const Normal3D normal = ProcessLine<Normal3D>(line);
-			normals_.PushBack(normal);
+			data_.Get<Normal3D>().PushBack(normal);
+
 			break;
 		}
 		case Primitive::POLYGON: {
 
 			const Polygon3D polygon = ProcessLine<Polygon3D>(line);
-			polygons_.PushBack(polygon);
+			data_.Get<Polygon3D>().PushBack(polygon);
+
 			break;
 		}
 		case Primitive::RGB_COLOR: {
 
 			const RgbColor rgb_color = ProcessLine<RgbColor>(line);
-			rgb_colors_.PushBack(rgb_color);
+			data_.Get<RgbColor>().PushBack(rgb_color);
+
 			break;
 		}
 
-			//...
+		//...
 
 		}
 
@@ -211,63 +208,100 @@ ResultType ConvertStrTo(const std::string& str)noexcept(true) {
 
 }
 
+//Magic number 3
+//comp == points:{x, y, z}
+//->3 comp in vertex
+//->3 comp in normal
+//->3 comp in polygon
+//->3 comp in rgb_color R G B
 
 template<>
-Vertex3D ObjFile::ProcessPrimitive<Vertex3D>(const std::string& primitive_line)const noexcept(true) {
+Vertex3D ObjFile::ProcessPrimitive<Vertex3D>(std::string& primitive_line)const noexcept(true) {
 
 	const std::regex reg_expr{ kCompStrRegExpr<Vertex3D> };
 	std::smatch reg_result;
 	std::stringstream convert;
-	std::regex_search(primitive_line, reg_result, reg_expr);
-
 	Vertex3D vertex;
 
-	vertex.x = ConvertStrTo<double>(reg_result[0]);
-	vertex.y = ConvertStrTo<double>(reg_result[1]);
-	vertex.z = ConvertStrTo<double>(reg_result[2]);
+	for (size_t i = 0; i < 3; i++){
+
+		std::regex_search(primitive_line, reg_result, reg_expr);
+		vertex.xyz[i] = ConvertStrTo<double>(reg_result.str());
+		primitive_line = reg_result.suffix();
+
+	}
 
 	return vertex;
 }
 
 template<>
-Normal3D ObjFile::ProcessPrimitive<Normal3D>(const std::string& primitive_line)const noexcept(true) {
+Normal3D ObjFile::ProcessPrimitive<Normal3D>(std::string& primitive_line)const noexcept(true) {
 
 	const std::regex reg_expr{ kCompStrRegExpr<Vertex3D> };
 	std::smatch reg_result;
 	std::stringstream convert;
-	std::regex_search(primitive_line, reg_result, reg_expr);
-
 	Normal3D normal;
 
-	normal.x = ConvertStrTo<double>(reg_result[0]);
-	normal.y = ConvertStrTo<double>(reg_result[1]);
-	normal.z = ConvertStrTo<double>(reg_result[2]);
+	for (size_t i = 0; i < 3; i++) {
+
+		std::regex_search(primitive_line, reg_result, reg_expr);
+		normal.xyz[i] = ConvertStrTo<double>(reg_result.str());
+		primitive_line = reg_result.suffix();
+
+	}
 
 	return normal;
 }
 
 template<>
-Polygon3D ObjFile::ProcessPrimitive<Polygon3D>(const std::string& primitive_str)const noexcept(true) {
+Polygon3D ObjFile::ProcessPrimitive<Polygon3D>(std::string& primitive_str)const noexcept(true) {
 
 	const std::regex reg_expr{ kCompStrRegExpr<Polygon3D> };
 	std::smatch reg_result;
 	std::stringstream convert;
-	std::regex_search(primitive_str, reg_result, reg_expr);
-
-	std::smatch result;
-	std::regex size_t_regex{ kCompStrRegExpr<RgbColor> };
 	Polygon3D polygon;
-	std::string size_t_str;
-
+	
 	for (size_t i = 0; i < 3; i++) {
 
-		size_t_str = reg_result[i].str();
-		std::regex_search(size_t_str, result, size_t_regex);
-		polygon.ratios[i].vertex_n = ConvertStrTo<size_t>(result[0]);
-		polygon.ratios[i].normal_n = ConvertStrTo<size_t>(result[1]);
+		std::regex_search(primitive_str, reg_result, reg_expr);
+		std::string size_t_str = reg_result.str();
 
+		//Process "uint//uint"
+		size_t pos = size_t_str.find("/");
+		polygon.ratios[i].vertex_n = ConvertStrTo<size_t>(size_t_str.substr(0, pos));
+		pos = size_t_str.rfind("/");
+		polygon.ratios[i].normal_n = ConvertStrTo<size_t>(size_t_str.substr(pos, size_t_str.size() - pos));
+
+		primitive_str = reg_result.suffix();
 	}
 
 	return polygon;
+}
+
+template<>
+RgbColor ObjFile::ProcessPrimitive<RgbColor>(std::string& str)const noexcept(true) {
+
+	RgbColor rgb_color;
+	std::smatch reg_result;
+	std::regex reg_expr{ kCompStrRegExpr<RgbColor> };
+	std::stringstream convert;
+	
+	for (size_t i = 0; i < 3; i++)	{
+
+		std::regex_search(str, reg_result, reg_expr);
+		std::string hex_str{ reg_result.str() };
+		
+		int hex_int;
+		convert << hex_str;
+		convert >> std::hex >> hex_int;
+		convert.clear();
+		rgb_color.bgra[2 - i] = static_cast<uint8_t>(hex_int);
+		str = reg_result.suffix();
+
+	}
+
+	rgb_color.rgba_alpha = 0;
+	
+	return rgb_color;
 }
 

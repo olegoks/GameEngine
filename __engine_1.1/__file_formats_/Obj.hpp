@@ -2,7 +2,7 @@
 #ifndef _OBJ_H_
 #define _OBJ_H_
 
-#include "..\engine_types.hpp"
+#include "../engine_types.hpp"
 
 #include <string>
 template<class ResultType>
@@ -15,15 +15,12 @@ ResultType ConvertStrTo(const std::string& str)noexcept(true);
 #include <iostream>
 #include <regex>
 #include <memory>
+#include <map>
 
 class ObjFile final{
-
 private:
 
-	ArrayOf<Vertex3D> vertexs_;
-	ArrayOf<Normal3D> normals_;
-	ArrayOf<Polygon3D> polygons_;
-	ArrayOf<RgbColor> rgb_colors_;
+	Data data_;
 
 	//Number of lines in .obj file. Need for counting % loading.
 	size_t n_of_lines_;
@@ -33,10 +30,11 @@ private:
 	template<class PrimitiveType>
 	PrimitiveType ProcessLine(const std::string& line)const noexcept(true);
 	template<class PrimitiveType>
-	PrimitiveType ProcessPrimitive(const std::string& primitive_line)const noexcept(true);
+	PrimitiveType ProcessPrimitive(std::string& primitive_line)const noexcept(true);
 	inline Primitive PrimitiveType(const std::string& line)const noexcept(true);
 	
 protected:
+
 	void ReserveMemory()noexcept(true);
 	void Output(const std::string& output)const noexcept(true);
 
@@ -49,12 +47,13 @@ protected:
 	static const std::string kCompStrRegExpr;
 	template<class PrimtiveType>
 	static const std::string kStrRegExpr;
+
+
+public:
 	template<class PrimtiveType>
 	static const std::string kLineStrRegExpr;
 
-public:
-
-	explicit ObjFile(const std::string&& file_name)noexcept(true);
+	explicit ObjFile(const std::string& file_name)noexcept(true);
 	~ObjFile();
 
 	void Open()noexcept(true);
@@ -62,20 +61,21 @@ public:
 	void Close()noexcept(true);
 
 	template<class PrimitiveType>
-	inline PrimitiveType* const Ptr()noexcept(true) { return nullptr;};
+	inline ArrayOf<PrimitiveType>& Get()noexcept(true) { return ArrayOf<PrimitiveType>{}; };
 
+	
 };
 #endif
 
-//Specializations for template function Ptr()
+//
 template<>
-inline Vertex3D* const ObjFile::Ptr<Vertex3D>()noexcept(true) { return vertexs_.Ptr(); };
+inline ArrayOf<Vertex3D>& ObjFile::Get<Vertex3D>()noexcept(true) { return data_.Get<Vertex3D>(); };
 template<>
-inline Normal3D* const ObjFile::Ptr<Normal3D>()noexcept(true) { return normals_.Ptr(); };
+inline ArrayOf<Normal3D>& ObjFile::Get<Normal3D>()noexcept(true) { return data_.Get<Normal3D>(); };
 template<>
-inline Polygon3D* const ObjFile::Ptr<Polygon3D>()noexcept(true) { return polygons_.Ptr(); };
+inline ArrayOf<Polygon3D>& ObjFile::Get<Polygon3D>()noexcept(true) { return data_.Get<Polygon3D>(); };
 template<>
-inline RgbColor* const ObjFile::Ptr<RgbColor>()noexcept(true) { return rgb_colors_.Ptr(); };
+inline ArrayOf<RgbColor>& ObjFile::Get<RgbColor>()noexcept(true) { return data_.Get<RgbColor>(); };
 
 //Primitive component StrReg
 template<class PrimitiveType>
@@ -101,7 +101,7 @@ PrimitiveType ObjFile::ProcessLine(const std::string& line) const noexcept(true)
 }
 
 template <class PrimitiveType>
-PrimitiveType ObjFile::ProcessPrimitive(const std::string& primitive_line)const noexcept(true) {
+PrimitiveType ObjFile::ProcessPrimitive(std::string& primitive_line)const noexcept(true) {
 
 	return PrimitiveType();
 }
