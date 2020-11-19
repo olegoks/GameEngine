@@ -1,13 +1,18 @@
 #include "DataBase.hpp"
 
+//Constants
+const std::string DataBase::kDefaultObjFilesDir = "";
+
 DataBase::DataBase()noexcept(true):
 	data_{},
-	obj_files_list_{}
+	obj_files_list_{},
+	obj_files_dir_{ kDefaultObjFilesDir }
 {}
 
-DataBase::~DataBase()noexcept(true){}
-
 void DataBase::LoadObjFiles()noexcept(true){
+
+	//FIX
+	std::cout << "Directory with object file: " << obj_files_dir_ << std::endl;
 
 	for (auto& obj_file_name : obj_files_list_)
 		LoadObjFile(obj_file_name);
@@ -16,16 +21,16 @@ void DataBase::LoadObjFiles()noexcept(true){
 
 void DataBase::LoadObjFile(const std::string& file_name)noexcept(true) {
 
-	ObjFile obj_file{ file_name };
+	ObjFile obj_file{ file_name, obj_files_dir_ };
 	obj_file.Open();
 	obj_file.Read();
 
-	data_.Get<Vertex3D>().Concat(obj_file.Get<Vertex3D>());
-	data_.Get<Normal3D>().Concat(obj_file.Get<Normal3D>());
-	data_.Get<Polygon3D>().Concat(obj_file.Get<Polygon3D>());
-	data_.Get<RgbColor>().Concat(obj_file.Get<RgbColor>());
+	data_.Data<Vertex3D>().Concat(obj_file.Data<Vertex3D>());
+	data_.Data<Normal3D>().Concat(obj_file.Data<Normal3D>());
+	data_.Data<Polygon3D>().Concat(obj_file.Data<Polygon3D>());
+	data_.Data<RgbColor>().Concat(obj_file.Data<RgbColor>());
+	//...
 	
-
 	obj_file.Close();
 
 	//data_.models.PushBack();
