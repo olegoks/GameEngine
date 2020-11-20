@@ -11,3 +11,4 @@
 *.vcxproj
 *.vcxproj.user
 *.sln
+**/CUDA
