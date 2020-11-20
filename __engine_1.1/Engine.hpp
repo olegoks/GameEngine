@@ -7,6 +7,8 @@
 #include <functional>
 #include <codecvt>
 #include <exception>
+#include <thread>
+
 #include "__window_/Window.hpp"
 #include "__database_/DataBase.hpp"
 #include "__console_/Console.hpp"
@@ -54,34 +56,66 @@ using LogicFunc = std::function<void()>;
 class Engine final{
 private:
 
-	//Holy of all saints
-	static Engine* self_;
-	static EngineDestroyer destroyer;
+	//Engine options. Start options are default.
+	struct Options {
+
+		std::chrono::high_resolution_clock::duration time_to_update_logic;
+		std::chrono::high_resolution_clock::duration fps_limit;
+		mutable std::string dir_path_;
+		
+	};
+
+	//Default options 
+	static const std::chrono::high_resolution_clock::duration kTimeToUpdateLogic;
+	static const std::chrono::milliseconds ms_to_frame;
+
 
 	//Default KeystrProcFunc anf LogicFunc
 	static const KeystrProcFunc kDefaultKeystrProcFunc;
 	static const LogicFunc kDefaultLogicFunc;
 
-	//
-	static const std::string kDefaultDirectory;
-
-
 	KeystrProcFunc keystr_proc_func_;
 	LogicFunc logic_func_;
 	
-	//
-	mutable std::string dir_path_;
+	//Holy of all saints
+	static Engine* self_;
+	static EngineDestroyer destroyer;
 	
+	//Engine options
+	Options options_;
+
+	//Main engine thread
+	std::thread thread_;
+
+	//Main engine subsystems
 	DataBase data_base_;
 	Window main_window_;
 	mutable Console* log_console_;
 	
+	//
+	bool loop_is_running_;
+
 	//Default constructor
 	explicit Engine()noexcept(true);
+
+	//Private methods
 	std::wstring ConvertStringtToWstring(const std::string& str)const noexcept(true);
+	void StartLoop()noexcept(true);
+	void ProcessInput()const noexcept(true);
+	void UpdateLogic()const noexcept(true);
+	void Render()const noexcept(true);
+	void ShowFrame()const noexcept(true);
+	void SwapBuffers()const noexcept(true);
+	void LoadModelsToGpu()const noexcept(true);
+	void AllocateMemory()const noexcept(true);
+	void CopyModels()const noexcept(true);
 
 public:
 
+	static const size_t kDefaultFps;
+	static const std::string kDefaultDirectory;
+
+	//Returs reference to engine object
 	static Engine& Instance()noexcept(false);
 	
 	//Engine interface
@@ -96,13 +130,13 @@ public:
 	void StartMainLoop()noexcept(true);
 	void ShowWindow()noexcept(true);
 	void Stop()noexcept(true);
+	//void OutputModelsInfo()noexcept(true);
+
+	//Models manipulations
 
 	friend class EngineDestroyer;
 
-
 };
-
-
 
 #endif //_ENGINE_HPP_
 
