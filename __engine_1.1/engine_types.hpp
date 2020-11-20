@@ -7,7 +7,6 @@
 #include <vector>
 #include <memory>
 
-
 enum class KeyType: uint32_t {
 
 	ArrowLeft = 1,
@@ -193,6 +192,37 @@ struct Normal3D {
 //Capacity - returns factual array size.
 //Empty - if array doesnt contain elements return true else false.
 
+template<class Type>
+static void Swap(Type& first, Type& second) noexcept(true) {
+
+	Type ref{ std::move(first) };
+	first = std::move(second);
+	second = std::move(ref);
+
+}
+
+template<class PrimitiveType>
+class Location final {
+private:
+
+	const PrimitiveType* data_;
+	size_t size_;
+
+public:
+
+	explicit Location()noexcept(true) :
+		data_{ nullptr },
+		size_{ 0 }{};
+
+	explicit Location(const PrimitiveType* data_ptr, const size_t size)noexcept(true) :
+		data_{ data_ptr },
+		size_{ size }{}
+
+	inline const PrimitiveType* const Data()const noexcept(true) { return data_; };
+	inline size_t Size()const noexcept(true) { return size; };
+
+};
+
 class AbstractArray abstract{
 private:
 protected:
@@ -260,6 +290,9 @@ public:
 	//Copy operator=
 	ArrayOf<DataType>& operator=(const ArrayOf<DataType>& arr)noexcept(true) {
 
+		if (&arr == this) 
+			return *this;
+
 		Clear();
 
 		const size_t arr_size = arr.Size();
@@ -275,6 +308,9 @@ public:
 
 	//Move operator=
 	ArrayOf<DataType>& operator=(ArrayOf<DataType>&& arr)noexcept(true) {
+
+		if (&arr == this)
+			return *this;
 
 		std::swap(ptr_, arr.ptr_);
 		std::swap(size_, arr.size_);
@@ -297,6 +333,7 @@ public:
 	
 	//Not override methods
 	void PushBack(const DataType& data)noexcept(true);
+	void PushBack(DataType&& data)noexcept(true);
 
 	inline DataType& operator[](const size_t index)noexcept(true) { 
 		return *(ptr_ + index);
@@ -318,6 +355,13 @@ public:
 
 	}
 
+	ArrayOf<DataType>& operator+(const ArrayOf<DataType>& arr)noexcept(true) {
+
+		Concat(arr);
+
+		return *this;
+	}
+
 };
 
 //ArrayOf<DataType> methods realizations.
@@ -331,13 +375,14 @@ void ArrayOf<DataType>::Reserve(const size_t new_capacity)const noexcept(true){
 
 		for (size_t i = 0; i < cpy_end; i++) {
 
-			new_ptr[i] = ptr_[i];
+			new_ptr[i] = std::move(ptr_[i]);
 
 		}
 
 		Clear();
 		ptr_ = new_ptr;
 
+		AbstractArray::SetSize(cpy_end);
 		AbstractArray::SetCapacity(new_capacity);
 
 	}
@@ -354,7 +399,23 @@ void ArrayOf<DataType>::PushBack(const DataType& data)noexcept(true) {
 	if (Empty())
 		ptr_[0] = data;
 	else
-		ptr_[AbstractArray::Size() - 1] = data;
+		ptr_[AbstractArray::Size()] = data;
+
+	AbstractArray::SetSize(AbstractArray::Size() + 1);
+
+}
+
+template<class DataType>
+void ArrayOf<DataType>::PushBack(DataType&& data)noexcept(true) {
+
+	//Reserves memory if necessary.
+	if (AbstractArray::Size() + 1 > AbstractArray::Capacity())
+		Reserve(AbstractArray::Capacity() + 1);
+
+	if (Empty())
+		ptr_[0] = std::move(data);
+	else
+		ptr_[AbstractArray::Size()] = std::move(data);
 
 	AbstractArray::SetSize(AbstractArray::Size() + 1);
 
@@ -415,7 +476,7 @@ void ArrayOf<DataType>::Concat(const ArrayOf<DataType>& arr)noexcept(true){
 
 }
 
-class DataDevice final {
+class DeviceData final {
 private:
 
 	const Vertex3D* vertexs_;
@@ -426,7 +487,7 @@ private:
 protected:
 public:
 
-	explicit DataDevice(const Vertex3D* const vertexs,
+	explicit DeviceData(const Vertex3D* const vertexs,
 		const Normal3D* const  normals,
 		const Polygon3D* const polygons,
 		const RgbColor* const rgb_colors)noexcept(true) :
@@ -436,26 +497,26 @@ public:
 		rgb_colors_{ rgb_colors }{}
 
 	//Default costructor
-	explicit DataDevice()noexcept(true) :
+	explicit DeviceData()noexcept(true) :
 		vertexs_{ nullptr },
 		normals_{ nullptr },
 		polygons_{ nullptr },
 		rgb_colors_{ nullptr }{}
 
 	template<class PrimitiveType>
-	inline const PrimitiveType* const Data()const noexcept(true) { return nullptr; };
+	inline const PrimitiveType* const Ptr()const noexcept(true) { return nullptr; };
 	template<>
-	inline const Vertex3D* const Data<Vertex3D>() const noexcept(true) { return vertexs_; };
+	inline const Vertex3D* const Ptr<Vertex3D>() const noexcept(true) { return vertexs_; };
 	template<>
-	inline const Normal3D* const Data<Normal3D>()const noexcept(true) { return normals_; };
+	inline const Normal3D* const Ptr<Normal3D>()const noexcept(true) { return normals_; };
 	template<>
-	inline const Polygon3D* const Data<Polygon3D>()const noexcept(true) { return polygons_; };
+	inline const Polygon3D* const Ptr<Polygon3D>()const noexcept(true) { return polygons_; };
 	template<>
-	inline const RgbColor* const Data<RgbColor>()const noexcept(true) { return rgb_colors_; };
+	inline const RgbColor* const Ptr<RgbColor>()const noexcept(true) { return rgb_colors_; };
 
 };
 
-class DataHost final{
+class HostData final{
 private:
 
 	ArrayOf<Vertex3D> vertexs_;
@@ -466,20 +527,10 @@ private:
 
 protected:
 
-	//
-	template<class Type>
-	void Swap(Type& first, Type& second)const noexcept(true) {
-
-		Type ref{ std::move(first) };
-		first = std::move(second);
-		second = std::move(ref);
-
-	}
-
 public:
 
 	//Copy constructor
-	explicit DataHost(const DataHost& data)noexcept(true) {
+	explicit HostData(const HostData& data)noexcept(true) {
 
 		vertexs_ = data.vertexs_;
 		normals_ = data.normals_;
@@ -489,7 +540,7 @@ public:
 	}
 
 	//Move costructor
-	explicit DataHost(DataHost&& data)noexcept(true):DataHost{} {
+	explicit HostData(HostData&& data)noexcept(true):HostData{} {
 
 		Swap(vertexs_, data.vertexs_);
 		Swap(normals_, data.normals_);
@@ -499,7 +550,7 @@ public:
 	}
 
 	//Default constructor
-	explicit DataHost()noexcept(true) :
+	explicit HostData()noexcept(true) :
 		vertexs_{},
 		normals_{},
 		polygons_{},
@@ -507,7 +558,7 @@ public:
 		//...
 	{  }
 
-	DataHost& operator=(const DataHost& data)noexcept(true) {
+	HostData& operator=(const HostData& data)noexcept(true) {
 
 		if (&data == this)
 			return *this;
@@ -521,7 +572,8 @@ public:
 		return *this;
 
 	}
-	DataHost& operator=(DataHost&& data)noexcept(true) {
+
+	HostData& operator=(HostData&& data)noexcept(true) {
 
 		if (&data == this)
 			return *this;
@@ -535,6 +587,27 @@ public:
 		return *this;
 	}
 
+	HostData& operator+(const HostData& data_host)noexcept(true) {
+
+		vertexs_ = vertexs_ + data_host.vertexs_;
+		normals_ = normals_ + data_host.normals_;
+		polygons_ = polygons_ + data_host.polygons_;
+		rgb_colors_ = rgb_colors_ + data_host.rgb_colors_;
+		//...
+
+		return *this;
+	}
+
+	/*template<class PrimitiveType>
+	inline Location<PrimitiveType> RetLocation()const noexcept(true) { return Location<PrimitiveType>{}; };
+	template<>
+	inline Location<Vertex3D> RetLocation()const noexcept(true) { return Location<Vertex3D>{ vertexs_.Data(), vertexs_.Size() }; };
+	template<>
+	inline Location<Normal3D> RetLocation()const noexcept(true) { return Location<Normal3D>{ normals_.Data(), normals_.Size() }; };
+	template<>
+	inline Location<Polygon3D> RetLocation()const noexcept(true) { return Location<Polygon3D>{ polygons_.Data(), polygons_.Size() }; };
+	template<>
+	inline Location<RgbColor> RetLocation()const noexcept(true) { return Location<RgbColor>{ rgb_colors_.Data(), rgb_colors_.Size() }; };*/
 	//
 	template<class PrimitiveType>
 	inline const ArrayOf<PrimitiveType>& Data()const noexcept(true) { return nullptr; };
@@ -560,10 +633,9 @@ public:
 	inline ArrayOf<RgbColor>& Data<RgbColor>()noexcept(true) { return rgb_colors_; };
 
 	//
-	virtual ~DataHost()noexcept(true) {}
+	virtual ~HostData()noexcept(true) {}
 
 };
-
 
 using ModelId = size_t;
 
@@ -577,42 +649,53 @@ private:
 	std::string model_name_;
 	std::string file_name_;
 
-	DataHost data_host_;
-	DataDevice data_device_;
+	HostData host_data_;
+	DeviceData device_data_;
 
 public:
 
 	//Default constructor
-	explicit Model()noexcept(true):
-		model_name_{ kDefaultModelName },
-		file_name_{kDefaultFileName},
-		data_host_{},
-		data_device_{}{
+	explicit Model()noexcept(true) :
+		host_data_{},
+		device_data_{}{
 		
 		++last_id;
 	
 	}
 
-	//
-	explicit Model(DataHost&& data_host, DataDevice&& data_device, const std::string& model_name, const std::string& file_name)noexcept(true):
-		model_name_{ model_name },
-		file_name_{ file_name },
-		data_host_{ data_host },
-		data_device_{ data_device } {}
+	explicit Model(HostData&& data)noexcept(true) {
 
-	//
-	template<class PrimitiveType>
-	inline const PrimitiveType* const HostData()const noexcept(true) { return nullptr; };
+		host_data_ = data;
+
+	}
+
+	Model& operator=(Model&& model)noexcept(true) {
+
+		if (&model == this)
+			return *this;
+
+		Swap(model_name_, model.model_name_ );
+		Swap(file_name_, model.file_name_);
+		Swap(host_data_, model.host_data_);
+		Swap(device_data_, model.device_data_);
+
+		return *this;
+	}
+
+	//Get device data
+	/*template<class PrimitiveType>
+	inline Location<PrimitiveType> const DeviceData()const noexcept(true) { return Location<PrimitiveType>{}; };
 	template<>
-	inline const Vertex3D* const HostData()const noexcept(true) { return data_host_.Data<Vertex3D>().Data(); }
+	inline Location<Vertex3D> const DeviceData()const noexcept(true) { return d_vertexs_; }
 	template<>
-	inline const Normal3D* const HostData()const noexcept(true) { return data_host_.Data<Normal3D>().Data(); }
+	inline Location<Normal3D> const DeviceData()const noexcept(true) { return d_normals_; }
 	template<>
-	inline const Polygon3D* const HostData()const noexcept(true) { return data_host_.Data<Polygon3D>().Data(); }
+	inline Location<Polygon3D> const DeviceData()const noexcept(true) { return d_polygons_; }
 	template<>
-	inline const RgbColor* const HostData()const noexcept(true) { return data_host_.Data<RgbColor>().Data(); }
-	
+	inline Location<RgbColor> const DeviceData()const noexcept(true) { return d_rgb_colors_; }*/
 
 };
+
+
 
 #endif //ENGINE_TYPES_HPP_
