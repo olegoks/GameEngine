@@ -2,12 +2,6 @@
 #ifndef _OBJ_HPP_
 #define _OBJ_HPP_
 
-#include "../../engine_types.hpp"
-
-#include <string>
-template<class ResultType>
-ResultType ConvertStrTo(const std::string& str)noexcept(true);
-
 #include <sstream>
 #include <fstream>
 #include <iomanip>
@@ -17,11 +11,17 @@ ResultType ConvertStrTo(const std::string& str)noexcept(true);
 #include <memory>
 #include <map>
 #include <chrono>
+#include <string>
+
+#include "../../engine_types.hpp"
+
+template<class ResultType>
+ResultType ConvertStrTo(const std::string& str)noexcept(true);
 
 class ObjFile final{
 private:
 
-	DataHost data_;
+	HostData data_;
 
 	//Number of lines in .obj file. Need for counting % loading.
 	size_t n_of_lines_;
@@ -38,6 +38,7 @@ private:
 
 protected:
 
+	long long FileSize(std::ifstream& file)const noexcept(true);
 	void ReserveMemory()noexcept(true);
 	void Output(const std::string& output)const noexcept(true);
 
@@ -51,8 +52,8 @@ protected:
 	template<class PrimtiveType>
 	static const std::string kStrRegExpr;
 
-
 public:
+
 	template<class PrimtiveType>
 	static const std::string kLineStrRegExpr;
 
@@ -63,22 +64,11 @@ public:
 	void Read()noexcept(true);
 	void Close()noexcept(true);
 
-	template<class PrimitiveType>
-	inline ArrayOf<PrimitiveType>& Data()noexcept(true) { return ArrayOf<PrimitiveType>{}; };
+	inline const HostData& DataCopy()const noexcept(true) { return data_; };
+	inline HostData&& DataMove()noexcept(true) { return std::move(data_); };
 
-	
 };
 #endif // _OBJFILE_HPP_
-
-//
-template<>
-inline ArrayOf<Vertex3D>& ObjFile::Data<Vertex3D>()noexcept(true) { return data_.Data<Vertex3D>(); };
-template<>
-inline ArrayOf<Normal3D>& ObjFile::Data<Normal3D>()noexcept(true) { return data_.Data<Normal3D>(); };
-template<>
-inline ArrayOf<Polygon3D>& ObjFile::Data<Polygon3D>()noexcept(true) { return data_.Data<Polygon3D>(); };
-template<>
-inline ArrayOf<RgbColor>& ObjFile::Data<RgbColor>()noexcept(true) { return data_.Data<RgbColor>(); };
 
 //Primitive component StrReg
 template<class PrimitiveType>

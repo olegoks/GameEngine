@@ -81,6 +81,22 @@ void ObjFile::Open()noexcept(true) {
 
 }
 
+long long ObjFile::FileSize(std::ifstream& file) const noexcept(true){
+
+	if (!file.is_open())
+		return 0;
+
+	const std::ios::iostate state = file.rdstate();
+	const std::streampos pos = file.tellg();
+	file.clear();
+	file.seekg(0, std::ios::end);
+	const long long size = file.tellg();
+	file.seekg(0, pos);
+	file.setstate(state);
+	
+	return size;
+}
+
 void ObjFile::ReserveMemory()noexcept(true){
 
 	std::string line;
@@ -121,15 +137,14 @@ void ObjFile::ReserveMemory()noexcept(true){
 	data_.Data<Normal3D>().Reserve(n_of_normals);
 	data_.Data<Polygon3D>().Reserve(n_of_polygons);
 	data_.Data<RgbColor>().Reserve(n_of_rgb_colors);
+
 	//...
 }
 
 void ObjFile::Read() noexcept(true) {
 
 	//Counting file size
-	file_object_->clear();
-	file_object_->seekg(0, std::ios_base::end);
-	const long long size_bytes = file_object_->tellg();
+	const long long size_bytes = FileSize(*file_object_);
 	const long long size_mbytes = ceil(static_cast<float>(size_bytes) / 1024.0f);
 
 	Output("\nLoading file: " + file_name_ + "  " + std::to_string(size_mbytes) + "KB");
@@ -247,12 +262,6 @@ void ObjFile::LoadingImitation()const noexcept(true) {
 
 	}
 }
-//Magic number 3
-//comp == points:{x, y, z}
-//->3 comp in vertex
-//->3 comp in normal
-//->3 comp in polygon
-//->3 comp in rgb_color R G B
 
 template<>
 Vertex3D ObjFile::ProcessPrimitive<Vertex3D>(std::string& primitive_line)const noexcept(true) {
