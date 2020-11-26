@@ -1,1 +1,1 @@
-#include "../__gpu_manager_/GpuManager.h"
+#include "../__gpu_manager_/GpuManager.hpp"
