@@ -205,7 +205,7 @@ template<class PrimitiveType>
 class Location final {
 private:
 
-	const PrimitiveType* data_;
+	const std::shared_ptr<PrimitiveType> data_;
 	size_t size_;
 
 public:
@@ -214,11 +214,11 @@ public:
 		data_{ nullptr },
 		size_{ 0 }{};
 
-	explicit Location(const PrimitiveType* data_ptr, const size_t size)noexcept(true) :
+	explicit Location(const std::shared_ptr<PrimitiveType> data_ptr, const size_t size)noexcept(true) :
 		data_{ data_ptr },
 		size_{ size }{}
 
-	inline const PrimitiveType* const Data()const noexcept(true) { return data_; };
+	inline const std::shared_ptr<PrimitiveType> const Data()const noexcept(true) { return data_; };
 	inline size_t Size()const noexcept(true) { return size; };
 
 };
@@ -479,18 +479,18 @@ void ArrayOf<DataType>::Concat(const ArrayOf<DataType>& arr)noexcept(true){
 class DeviceData final {
 private:
 
-	const Vertex3D* vertexs_;
-	const Normal3D* normals_;
-	const Polygon3D* polygons_;
-	const RgbColor* rgb_colors_;
+	Vertex3D* vertexs_;
+	Normal3D* normals_;
+	Polygon3D* polygons_;
+	RgbColor* rgb_colors_;
 
 protected:
 public:
 
-	explicit DeviceData(const Vertex3D* const vertexs,
-		const Normal3D* const  normals,
-		const Polygon3D* const polygons,
-		const RgbColor* const rgb_colors)noexcept(true) :
+	explicit DeviceData(Vertex3D* const vertexs,
+		Normal3D* const  normals,
+		Polygon3D* const polygons,
+		RgbColor* const rgb_colors)noexcept(true) :
 		vertexs_{ vertexs },
 		normals_{ normals },
 		polygons_{ polygons },
@@ -514,6 +514,7 @@ public:
 	template<>
 	inline const RgbColor* const Ptr<RgbColor>()const noexcept(true) { return rgb_colors_; };
 
+	friend class GpuMemoryManager;
 };
 
 class HostData final{
@@ -609,6 +610,11 @@ public:
 	template<>
 	inline Location<RgbColor> RetLocation()const noexcept(true) { return Location<RgbColor>{ rgb_colors_.Data(), rgb_colors_.Size() }; };*/
 	//
+
+	template<class PrimitiveType>
+	inline size_t NPrimitiveElements()const noexcept(true) { return Data<PrimitiveType>().Size(); }
+
+	
 	template<class PrimitiveType>
 	inline const ArrayOf<PrimitiveType>& Data()const noexcept(true) { return nullptr; };
 	template<>
@@ -682,6 +688,10 @@ public:
 		return *this;
 	}
 
+	friend class GpuMemoryManager;
+
+	//template<class Vertex3D>
+	//inline size_t NPrimitiveElemennts<Vertex3D>()const noexcept(true) { return ; }
 	//Get device data
 	/*template<class PrimitiveType>
 	inline Location<PrimitiveType> const DeviceData()const noexcept(true) { return Location<PrimitiveType>{}; };

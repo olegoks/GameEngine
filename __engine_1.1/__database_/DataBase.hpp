@@ -36,10 +36,10 @@ public:
 	explicit DataBase(DataBase&&)noexcept(true) = delete;
 	explicit DataBase(const DataBase&)noexcept(true) = delete;
 
-	inline const Model& operator[](const size_t index)const noexcept(true) { return models_[index]; }
+	//inline const Model& operator[](const size_t index)const noexcept(true) { return models_[index]; }
 	inline Model& operator[](const size_t index)noexcept(true) { return models_[index]; }
 
-	inline size_t ModelsNumber()const noexcept(true) { models_.Size(); };
+	inline size_t ModelsNumber()const noexcept(true) { return models_.Size(); };
 	//Move all data from DataBase, after that operation DataBase will be empty
 
 	//Set directory where will be find obj files

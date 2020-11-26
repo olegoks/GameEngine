@@ -10,9 +10,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	engine.LoadModels( { "Parallel.obj", "ColorCube.obj" } );
 	  //engine.OutputModelsInfo();
 	engine.InitWindow(hInstance);
-	engine.ShowWindow();
 	engine.StartMainLoop();
+	engine.ShowWindow();
 	engine.Stop();
+
+
 
 	return 0;
 }
