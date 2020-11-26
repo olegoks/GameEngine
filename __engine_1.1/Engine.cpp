@@ -14,6 +14,8 @@ Engine::Engine()noexcept(true):
 	main_window_{},
 	data_base_{},
 	//Initialize options struct
+	//Initialize memory manager
+	thread_{},
 	log_console_{ nullptr },
 	loop_is_running_{ false }{
 
@@ -116,7 +118,8 @@ void Engine::StartMainLoop() noexcept(true){
 
 	LoadModelsToGpu();
 
-	StartLoop();
+	//StartLoop();// 
+	thread_ = std::thread{ &Engine::StartLoop, this };
 
 }
 
@@ -124,6 +127,8 @@ void Engine::ShowWindow() noexcept(true){
 
 	main_window_.Show();
 	main_window_.StartMessageLoop();
+	loop_is_running_ = false;
+	thread_.join();
 
 }
 
@@ -146,6 +151,7 @@ const std::chrono::milliseconds Engine::ms_to_frame = std::chrono::milliseconds(
 
 void Engine::StartLoop()noexcept(true){
 
+	MessageBox(nullptr, L"Loop is running.", nullptr, NULL);
 	using namespace std::chrono;
 	using duration = high_resolution_clock::duration;
 	using time_point = high_resolution_clock::time_point;
@@ -156,6 +162,9 @@ void Engine::StartLoop()noexcept(true){
 	//lag accumulates cycle durations
 	duration lag = duration::zero();
 	time_point previous = high_resolution_clock::now();
+
+	loop_is_running_ = true;
+
 
 	while (loop_is_running_) {
 
@@ -173,6 +182,7 @@ void Engine::StartLoop()noexcept(true){
 
 		}
 
+		std::cout << "RENDER" << std::endl;
 		Render();
 		SwapBuffers();
 		ShowFrame();
@@ -191,11 +201,13 @@ void Engine::ProcessInput() const noexcept(true)
 {
 }
 
-void Engine::UpdateLogic() const noexcept(true)
-{
+void Engine::UpdateLogic() const noexcept(true){
+
+
 }
 
 void Engine::Render()const noexcept(true){
+	//std::cout << "render";
 }
 
 void Engine::ShowFrame() const noexcept(true)
@@ -206,17 +218,35 @@ void Engine::SwapBuffers() const noexcept(true)
 {
 }
 
-void Engine::LoadModelsToGpu() const noexcept(true){
+void Engine::LoadModelsToGpu()noexcept(true){
 
 	AllocateMemory();
 	CopyModels();
 
 }
 
-void Engine::AllocateMemory() const noexcept(true)
-{
+void Engine::AllocateMemory()noexcept(true){
+
+	const size_t models_number = data_base_.ModelsNumber();
+
+	for (size_t i = 0; i < models_number; i++) {
+
+		Model& model = data_base_[i];
+		gpu_memory_manager_.Allocate(model);
+
+	}
+
 }
 
-void Engine::CopyModels() const noexcept(true)
-{
+void Engine::CopyModels()noexcept(true){
+
+	const size_t models_number = data_base_.ModelsNumber();
+
+	for (size_t i = 0; i < models_number; i++) {
+
+		Model& model = data_base_[i];
+		gpu_memory_manager_.CopyModel(model);
+
+	}
+
 }

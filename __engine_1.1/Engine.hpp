@@ -12,6 +12,7 @@
 #include "__window_/Window.hpp"
 #include "__database_/DataBase.hpp"
 #include "__console_/Console.hpp"
+#include "../__engine_1.1/__gpu_manager_/GpuManager.hpp"
 
 //Func = function
 //Proc = processing, process
@@ -90,6 +91,8 @@ private:
 	//Main engine subsystems
 	DataBase data_base_;
 	Window main_window_;
+	GpuMemoryManager gpu_memory_manager_;
+	
 	mutable Console* log_console_;
 	
 	//
@@ -106,9 +109,9 @@ private:
 	void Render()const noexcept(true);
 	void ShowFrame()const noexcept(true);
 	void SwapBuffers()const noexcept(true);
-	void LoadModelsToGpu()const noexcept(true);
-	void AllocateMemory()const noexcept(true);
-	void CopyModels()const noexcept(true);
+	void LoadModelsToGpu()noexcept(true);
+	void AllocateMemory()noexcept(true);
+	void CopyModels()noexcept(true);
 
 public:
 
