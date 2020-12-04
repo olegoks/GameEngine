@@ -3,42 +3,36 @@
 #define _GPUALLOCATOR_HPP_
 
 #include "../engine_types.hpp"
+#include "../__gpu_manager_/GpuManager.hpp"
 #include "../__gpu_manager_/CUDAGpuManager.cuh"
 
 class GpuMemoryManager final{
 private:
-
 public:
 
 	explicit GpuMemoryManager()noexcept(true){}
 
-	void Allocate(Model& model)const noexcept(true) {
-
-		long long n_bytes;
-
-		n_bytes = model.host_data_.Data<Vertex3D>().Size();
-		model.device_data_.vertexs_ = AllocateMemory<Vertex3D>(n_bytes);
-		
-		n_bytes = model.host_data_.Data<Normal3D>().Size();
-		model.device_data_.normals_ = AllocateMemory<Normal3D>(n_bytes);
-
-		n_bytes = model.host_data_.Data<Polygon3D>().Size();
-		model.device_data_.polygons_ = AllocateMemory<Polygon3D>(n_bytes);
-
-		n_bytes = model.host_data_.Data<RgbColor>().Size();
-		model.device_data_.rgb_colors_ = AllocateMemory<RgbColor>(n_bytes);
-		//Allocate memory for models. Memory copy of models, but in global gpu memory space
+	template<class Type>
+	static void Free(Type* data)noexcept(true) {
+		 
+		FreeMemory(static_cast<void*>(data));
 
 	}
 
 
-	void CopyModel(Model& model)const noexcept(true) {
+	template<class Type>
+	static inline Type* Allocate(const long long n_bytes)noexcept(true) {
 
-		model.host_data_.Data<Vertex3D>();
-		MemoryCopy<Vertex3D>(model.host_data_.Data<Vertex3D>().Data(), model.device_data_.vertexs_, model.host_data_.NPrimitiveElements<Vertex3D>() );
+		return static_cast<Type*>(AllocateMemory(n_bytes));
 
 	}
 
+	template<class Type>
+	static void Copy(const Type* host_data, Type* device_ptr, const long long size)noexcept(true) {
+
+		MemoryCopy(static_cast<const void*>(host_data), static_cast<void*>(device_ptr), size);
+
+	}
 
 };
 #endif //_GPUALLOCATOR_HPP_
