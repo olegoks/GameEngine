@@ -3,7 +3,9 @@
 #define _DATABASE_HPP_
 
 #include <algorithm>
+#include <memory>
 #include "__file_formats_/Obj.hpp"
+#include "../__gpu_manager_/GpuManager.hpp"
 
 using ObjFilesList = std::vector<std::string>;
 
@@ -12,15 +14,23 @@ private:
 
 	//Default directory with object files(.obj)
 	static const std::string kDefaultObjFilesDir;
+	
 	//All information about models components: vertexs, normals, polygons, rgb_colors
-	ArrayOf<Model> models_;
+	HostArrayOf<Model> models_;
+
+	//
+	DeviceData common_gpu_memory_;
+
 	//All models information
 	//List with included names of obj files, that will be include
 	mutable ObjFilesList obj_files_list_;
+	
 	//Current obj files directory
 	mutable std::string obj_files_dir_;
+	
 	//Load info from one object file
 	void LoadObjFile(const std::string& file_name)noexcept(true);
+	void CopyModelToGpu(Model& model)noexcept(true);
 
 public:
 
@@ -57,10 +67,13 @@ public:
 
 	//Include obj files name to obj_files_list
 	void IncludeObjFileName(const std::initializer_list<std::string>& list)const noexcept(true);
+	inline HostArrayOf<Model>& Models()noexcept(true) { return models_; };
 
 	//virtual formal
 	virtual ~DataBase() {}
-
+	inline DeviceData* const GetDeviceData()noexcept(true) { return &common_gpu_memory_; };
+	void AllocateGpuMemoryForModels()noexcept(true);
+	void CopyModelsToGpu()noexcept(true);
 	void OutputModelsInfo()noexcept(true);
 
 };
