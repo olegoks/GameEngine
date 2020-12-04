@@ -6,74 +6,10 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <functional>
 
-enum class KeyType: uint32_t {
 
-	ArrowLeft = 1,
-	ArrowRight = 2,
-	ArrowUp = 3,
-	ArrowDown = 4,
-	WheelDown = 5,
-	WheelUp = 6,
-	MouseLeft = 7,
-	MouseRight = 8,
-	A = 9,
-	S = 10,
-	D = 11,
-	W = 12
-
-};
-
-struct Keystroke {
-
-	KeyType key_type;
-	long long time_point;
-
-};
-
-#include <queue>
-#include <mutex>
-
-class KeystrokesQueue final {
-private:
-
-	std::queue<Keystroke> queue_;
-	std::mutex mutex_;
-
-protected:
-public:
-
-	explicit KeystrokesQueue()noexcept(true) :
-		queue_{} {}
-
-	Keystroke Pop()noexcept(true) {
-
-		mutex_.lock();
-
-		if (!queue_.empty()) {
-
-			Keystroke keystroke = queue_.back();
-			queue_.pop();
-
-		}
-
-		mutex_.unlock();
-
-	}
-
-	void Push(const Keystroke keystroke)noexcept(true) {
-
-		mutex_.lock();
-
-		queue_.push(keystroke);
-
-		mutex_.unlock();
-
-	}
-
-	inline bool Empty()const noexcept(true) { return queue_.empty(); }
-
-};
+using ModelId = size_t;
 
 struct Ratio {
 	union {
@@ -86,6 +22,39 @@ struct Ratio {
 
 	};
 
+};
+
+struct Vector2D {
+
+	union {
+
+		struct {
+
+			float x;
+			float y;
+
+		};
+
+		float xy[2];
+	
+	};
+};
+
+struct Vector3D {
+
+	union {
+
+		struct {
+
+			float x;
+			float y;
+			float z;
+
+		};
+	
+		float xyz[3];
+
+	};
 };
 
 struct RgbColor {
@@ -105,12 +74,22 @@ struct RgbColor {
 
 	};
 
+	//explicit operator FramePixel(){
+	//	
+	//	//Huinya code
+	//	FramePixel pixel;
+	//	pixel.rgba_red = rgba_red;
+	//	pixel.rgba_green = rgba_green;
+	//	pixel.rgba_blue = rgba_blue;
+	//	pixel.rgba_alpha = rgba_alpha;
+
+	//	return pixel;
+	//
+	//}
+
 };
 
-struct RgbPixel : public RgbColor {
-
-
-};
+using FramePixel = RgbColor;
 
 enum class Primitive :uint8_t {
 
@@ -128,7 +107,24 @@ enum class Primitive :uint8_t {
 struct Polygon3D {
 
 	Ratio ratios[3];
-	RgbPixel color;
+	RgbColor color;
+
+};
+
+struct Vertex2D {
+
+	union {
+
+		struct {
+
+			float x;
+			float y;
+
+		};
+
+		float xy[2];
+
+	};
 
 };
 
@@ -250,8 +246,122 @@ public:
 
 };
 
+#include "../__engine_1.1/__gpu_manager_/GpuManager.hpp"
+
 template<class DataType>
-class ArrayOf : public AbstractArray{
+class HostArrayOf;
+
+template<class DataType>
+class DeviceArrayOf final : public AbstractArray {
+private:
+
+	template<class Type>
+	struct deleter
+	{
+		
+		void operator ()(Type* const data_ptr){
+
+			FreeMemory(static_cast<void*>(data_ptr));
+		
+		}
+
+	};
+
+	mutable DataType* ptr_;
+	
+public:
+
+	explicit DeviceArrayOf(DeviceArrayOf<DataType>&& arr)noexcept(true):
+		ptr_{ nullptr },
+		AbstractArray::AbstractArray{}{
+
+		Swap(this->ptr_, arr.ptr_);
+		Swap(this->capacity_, arr.capacity_);
+		Swap(this->size_, arr.size_);
+
+	}
+
+	explicit DeviceArrayOf(DataType* ptr, size_t size)noexcept(true) :
+		ptr_{ ptr },
+		AbstractArray{ size } {}
+
+
+	explicit DeviceArrayOf()noexcept(true) :
+		ptr_{ nullptr } {}
+
+	void Reserve(const size_t new_capacity)const noexcept(true) {
+
+		if (AbstractArray::Capacity() < new_capacity) {
+
+			DataType* new_ptr = static_cast<DataType*>(AllocateMemory(static_cast<long long>(new_capacity) * sizeof(DataType)));
+			const size_t cpy_end = AbstractArray::Size();
+
+			for (size_t i = 0; i < cpy_end; i++) {
+
+				new_ptr[i] = std::move(ptr_[i]);
+
+			}
+
+			Clear();
+			ptr_ = new_ptr;
+
+			AbstractArray::SetSize(cpy_end);
+			AbstractArray::SetCapacity(new_capacity);
+
+		}
+
+	}
+
+	void Clear()const noexcept(true) {
+	
+		if (ptr_ != nullptr) {
+
+			FreeMemory(static_cast<void*>(ptr_));
+			AbstractArray::SetCapacity(0);
+			AbstractArray::SetSize(0);
+
+		}
+
+	}
+
+	void Copy(const HostArrayOf<DataType>& host_array)noexcept(true) {
+
+		const size_t host_array_size = host_array.Size();
+		if (host_array_size > this->Capacity()) 
+			Reserve(host_array_size);
+
+		MemoryCopy(static_cast<const void*>(host_array.Data()), static_cast<void*>(this->ptr_), host_array_size * sizeof(DataType));
+
+		this->SetSize(host_array_size);
+
+	}
+
+	DeviceArrayOf<DataType>& operator=(DeviceArrayOf<DataType>&& arr)noexcept(true) {
+
+		if (this == &arr)
+			return *this;
+
+		Swap(this->ptr_, arr.ptr_);
+		Swap(this->capacity_, arr.capacity_);
+		Swap(this->size_, arr.size_);
+
+		return *this;
+
+	}
+
+	inline const DataType* const Ptr()const noexcept(true) { return ptr_; }
+	inline DataType* const Ptr()noexcept(true) { return ptr_; }
+
+	~DeviceArrayOf()noexcept(true) {
+
+		FreeMemory(static_cast<void*>(ptr_));
+
+	}
+
+};
+
+template<class DataType>
+class HostArrayOf : public AbstractArray{
 private:
 
 	//"ptr_" is "mutable" because some methods, for example, Reserve we have to do non const.
@@ -262,7 +372,7 @@ protected:
 public:
 
 	//Copy constructor
-	explicit ArrayOf(const ArrayOf<DataType>& arr)noexcept(true):
+	explicit HostArrayOf(const HostArrayOf<DataType>& arr)noexcept(true):
 		AbstractArray{ arr.Size() }{
 	
 		ptr_ = (DataType*) new DataType[arr.Size()];
@@ -273,8 +383,8 @@ public:
 	}
 
 	//Move constructor
-	explicit ArrayOf(ArrayOf<DataType>&& arr)noexcept(true) :
-		ArrayOf{} {
+	explicit HostArrayOf(HostArrayOf<DataType>&& arr)noexcept(true) :
+		HostArrayOf{} {
 
 		std::swap(ptr_, arr.ptr_);
 		std::swap(size_, arr.size_);
@@ -283,12 +393,12 @@ public:
 	}
 
 	//Default constructor
-	explicit ArrayOf()noexcept(true) :
+	explicit HostArrayOf()noexcept(true) :
 		AbstractArray{ 0 },
 		ptr_{ nullptr }{}
 
 	//Copy operator=
-	ArrayOf<DataType>& operator=(const ArrayOf<DataType>& arr)noexcept(true) {
+	HostArrayOf<DataType>& operator=(const HostArrayOf<DataType>& arr)noexcept(true) {
 
 		if (&arr == this) 
 			return *this;
@@ -307,7 +417,7 @@ public:
 	}
 
 	//Move operator=
-	ArrayOf<DataType>& operator=(ArrayOf<DataType>&& arr)noexcept(true) {
+	HostArrayOf<DataType>& operator=(HostArrayOf<DataType>&& arr)noexcept(true) {
 
 		if (&arr == this)
 			return *this;
@@ -343,19 +453,19 @@ public:
 		return *(ptr_ + index);
 	};
 
-	void Concat(const ArrayOf<DataType>& arr)noexcept(true);
+	void Concat(const HostArrayOf<DataType>& arr)noexcept(true);
 
 	inline const DataType* const Data() const noexcept(true) { return ptr_; }
 
 	//Virtual destructor
-	virtual ~ArrayOf()noexcept(true){
+	virtual ~HostArrayOf()noexcept(true){
 	
 		if (ptr_ != nullptr)
 			delete[] ptr_;
 
 	}
 
-	ArrayOf<DataType>& operator+(const ArrayOf<DataType>& arr)noexcept(true) {
+	HostArrayOf<DataType>& operator+(const HostArrayOf<DataType>& arr)noexcept(true) {
 
 		Concat(arr);
 
@@ -366,7 +476,7 @@ public:
 
 //ArrayOf<DataType> methods realizations.
 template<class DataType>
-void ArrayOf<DataType>::Reserve(const size_t new_capacity)const noexcept(true){
+void HostArrayOf<DataType>::Reserve(const size_t new_capacity)const noexcept(true){
 
 	if (AbstractArray::Capacity() < new_capacity) {
 
@@ -390,7 +500,7 @@ void ArrayOf<DataType>::Reserve(const size_t new_capacity)const noexcept(true){
 };
 
 template<class DataType>
-void ArrayOf<DataType>::PushBack(const DataType& data)noexcept(true) {
+void HostArrayOf<DataType>::PushBack(const DataType& data)noexcept(true) {
 
 	//Reserves memory if necessary.
 	if (AbstractArray::Size() + 1 > AbstractArray::Capacity())
@@ -406,7 +516,7 @@ void ArrayOf<DataType>::PushBack(const DataType& data)noexcept(true) {
 }
 
 template<class DataType>
-void ArrayOf<DataType>::PushBack(DataType&& data)noexcept(true) {
+void HostArrayOf<DataType>::PushBack(DataType&& data)noexcept(true) {
 
 	//Reserves memory if necessary.
 	if (AbstractArray::Size() + 1 > AbstractArray::Capacity())
@@ -422,7 +532,7 @@ void ArrayOf<DataType>::PushBack(DataType&& data)noexcept(true) {
 }
 
 template<class DataType>
-void ArrayOf<DataType>::Concat(const ArrayOf<DataType>& arr)noexcept(true){
+void HostArrayOf<DataType>::Concat(const HostArrayOf<DataType>& arr)noexcept(true){
 
 	//Pointer to concat memory block.
 	const DataType* const concat_ptr = arr.Data();
@@ -476,54 +586,171 @@ void ArrayOf<DataType>::Concat(const ArrayOf<DataType>& arr)noexcept(true){
 
 }
 
+struct NPrimitives {
+
+	size_t n_vertexs;
+	size_t n_normals;
+	size_t n_polygons;
+	size_t n_rgb_colors;
+
+	NPrimitives& operator+(const NPrimitives& n_primitives)noexcept(true) {
+
+		n_vertexs += n_primitives.n_vertexs;
+		n_normals += n_primitives.n_normals;
+		n_polygons += n_primitives.n_polygons;
+		n_rgb_colors += n_primitives.n_rgb_colors;
+
+		return *this;
+	}
+};
+
+struct DevicePtrs {
+
+	Vertex3D* vertexs;
+	Normal3D* normals;
+	Polygon3D* polygons;
+	RgbColor* rgb_colors;
+
+	DevicePtrs& operator+(const NPrimitives& n_primitives)noexcept(true) {
+
+		vertexs += n_primitives.n_vertexs;
+		normals += n_primitives.n_normals;
+		polygons += n_primitives.n_polygons;
+		rgb_colors += n_primitives.n_rgb_colors;
+
+		return *this;
+
+	}
+
+};
+
 class DeviceData final {
 private:
 
-	Vertex3D* vertexs_;
-	Normal3D* normals_;
-	Polygon3D* polygons_;
-	RgbColor* rgb_colors_;
+	DeviceArrayOf<Vertex3D> vertexs_;
+	DeviceArrayOf<Normal3D> normals_;
+	DeviceArrayOf<Polygon3D> polygons_;
+	DeviceArrayOf<RgbColor> rgb_colors_;
 
 protected:
 public:
 
-	explicit DeviceData(Vertex3D* const vertexs,
-		Normal3D* const  normals,
-		Polygon3D* const polygons,
-		RgbColor* const rgb_colors)noexcept(true) :
-		vertexs_{ vertexs },
-		normals_{ normals },
-		polygons_{ polygons },
-		rgb_colors_{ rgb_colors }{}
+	//explicit DeviceData(Vertex3D* const vertexs,
+	//	Normal3D* const  normals,
+	//	Polygon3D* const polygons,
+	//	RgbColor* const rgb_colors)noexcept(true) :
+	//	vertexs_{ vertexs },
+	//	normals_{ normals },
+	//	polygons_{ polygons },
+	//	rgb_colors_{ rgb_colors }{}
 
-	//Default costructor
-	explicit DeviceData()noexcept(true) :
-		vertexs_{ nullptr },
-		normals_{ nullptr },
-		polygons_{ nullptr },
-		rgb_colors_{ nullptr }{}
+	explicit DeviceData(const size_t vertexs_size,
+		const size_t normals_size,
+		const size_t polygons_size,
+		const size_t rgb_colors_size)noexcept(true) {
+
+
+	}
+
+	explicit DeviceData(DeviceData&& device_data)noexcept(true) {
+
+		Swap(vertexs_, device_data.vertexs_);
+		Swap(normals_, device_data.normals_);
+		Swap(polygons_, device_data.polygons_);
+		Swap(rgb_colors_, device_data.rgb_colors_);
+
+	}
+
+	explicit DeviceData(const DevicePtrs& ptrs, const NPrimitives& n_primitives)noexcept(true):
+		vertexs_{ ptrs.vertexs, n_primitives.n_vertexs },
+		normals_{ ptrs.normals, n_primitives.n_normals },
+		polygons_{ ptrs.polygons, n_primitives.n_polygons },
+		rgb_colors_{ ptrs.rgb_colors, n_primitives.n_rgb_colors }{ }
+
+	explicit DeviceData()noexcept(true):
+		vertexs_{},
+		normals_{},
+		polygons_{},
+		rgb_colors_{}{}
+
+	NPrimitives PrimitivesNumber()const noexcept(true) {
+
+		return NPrimitives{ vertexs_.Size(), normals_.Size(), polygons_.Size(), rgb_colors_.Size() };
+
+	}
+
+	NPrimitives PrimitivesCapacity()const noexcept(true) {
+
+		return NPrimitives{ vertexs_.Capacity(), normals_.Capacity(), polygons_.Capacity(), rgb_colors_.Capacity() };
+
+	}
+
+	void Reserve(const NPrimitives& n_primitives)noexcept(true) {
+
+		vertexs_.Reserve(n_primitives.n_vertexs);
+		normals_.Reserve(n_primitives.n_normals);
+		polygons_.Reserve(n_primitives.n_polygons);
+		rgb_colors_.Reserve(n_primitives.n_rgb_colors);
+
+	}
+
+	DeviceData& operator=(DeviceData&& device_data)noexcept(true) {
+
+		if (this == &device_data)
+			return *this;
+
+		Swap(vertexs_, device_data.vertexs_);
+		Swap(normals_, device_data.normals_);
+		Swap(polygons_, device_data.polygons_);
+		Swap(rgb_colors_, device_data.rgb_colors_);
+
+		return *this;
+	}
+
+	const DevicePtrs Ptrs()noexcept(true) {
+
+		const DevicePtrs ptrs{
+
+			vertexs_.Ptr(),
+			normals_.Ptr(),
+			polygons_.Ptr(),
+			rgb_colors_.Ptr()
+
+		};
+		
+		return ptrs;
+
+	}
+
+
+	////Default costructor
+	//explicit DeviceData()noexcept(true) :
+	//	vertexs_{ nullptr },
+	//	normals_{ nullptr },
+	//	polygons_{ nullptr },
+	//	rgb_colors_{ nullptr }{}
 
 	template<class PrimitiveType>
 	inline const PrimitiveType* const Ptr()const noexcept(true) { return nullptr; };
 	template<>
-	inline const Vertex3D* const Ptr<Vertex3D>() const noexcept(true) { return vertexs_; };
+	inline const Vertex3D* const Ptr<Vertex3D>() const noexcept(true) { return vertexs_.Ptr(); };
 	template<>
-	inline const Normal3D* const Ptr<Normal3D>()const noexcept(true) { return normals_; };
+	inline const Normal3D* const Ptr<Normal3D>()const noexcept(true) { return normals_.Ptr(); };
 	template<>
-	inline const Polygon3D* const Ptr<Polygon3D>()const noexcept(true) { return polygons_; };
+	inline const Polygon3D* const Ptr<Polygon3D>()const noexcept(true) { return polygons_.Ptr(); };
 	template<>
-	inline const RgbColor* const Ptr<RgbColor>()const noexcept(true) { return rgb_colors_; };
+	inline const RgbColor* const Ptr<RgbColor>()const noexcept(true) { return rgb_colors_.Ptr(); };
 
-	friend class GpuMemoryManager;
+	friend class DataBase;
 };
 
 class HostData final{
 private:
 
-	ArrayOf<Vertex3D> vertexs_;
-	ArrayOf<Normal3D> normals_;
-	ArrayOf<Polygon3D> polygons_;
-	ArrayOf<RgbColor> rgb_colors_;
+	HostArrayOf<Vertex3D> vertexs_;
+	HostArrayOf<Normal3D> normals_;
+	HostArrayOf<Polygon3D> polygons_;
+	HostArrayOf<RgbColor> rgb_colors_;
 	//...
 
 protected:
@@ -611,84 +838,119 @@ public:
 	inline Location<RgbColor> RetLocation()const noexcept(true) { return Location<RgbColor>{ rgb_colors_.Data(), rgb_colors_.Size() }; };*/
 	//
 
-	template<class PrimitiveType>
-	inline size_t NPrimitiveElements()const noexcept(true) { return Data<PrimitiveType>().Size(); }
-
 	
 	template<class PrimitiveType>
-	inline const ArrayOf<PrimitiveType>& Data()const noexcept(true) { return nullptr; };
+	inline const HostArrayOf<PrimitiveType>& Data()const noexcept(true) { return nullptr; };
 	template<>
-	inline const ArrayOf<Vertex3D>& Data<Vertex3D>()const noexcept(true) { return vertexs_; };
+	inline const HostArrayOf<Vertex3D>& Data<Vertex3D>()const noexcept(true) { return vertexs_; };
 	template<>
-	inline const ArrayOf<Normal3D>& Data<Normal3D>()const noexcept(true) { return normals_; };
+	inline const HostArrayOf<Normal3D>& Data<Normal3D>()const noexcept(true) { return normals_; };
 	template<>
-	inline const ArrayOf<Polygon3D>& Data<Polygon3D>()const noexcept(true) { return polygons_; };
+	inline const HostArrayOf<Polygon3D>& Data<Polygon3D>()const noexcept(true) { return polygons_; };
 	template<>
-	inline const ArrayOf<RgbColor>& Data<RgbColor>()const noexcept(true) { return rgb_colors_; };
+	inline const HostArrayOf<RgbColor>& Data<RgbColor>()const noexcept(true) { return rgb_colors_; };
 
 	//
 	template<class PrimitiveType>
-	inline ArrayOf<PrimitiveType>& Data()noexcept(true) { return nullptr; };
+	inline HostArrayOf<PrimitiveType>& Data()noexcept(true) { return nullptr; };
 	template<>
-	inline ArrayOf<Vertex3D>& Data<Vertex3D>()noexcept(true) { return vertexs_; };
+	inline HostArrayOf<Vertex3D>& Data<Vertex3D>()noexcept(true) { return vertexs_; };
 	template<>
-	inline ArrayOf<Normal3D>& Data<Normal3D>()noexcept(true) { return normals_; };
+	inline HostArrayOf<Normal3D>& Data<Normal3D>()noexcept(true) { return normals_; };
 	template<>
-	inline ArrayOf<Polygon3D>& Data<Polygon3D>()noexcept(true) { return polygons_; };
+	inline HostArrayOf<Polygon3D>& Data<Polygon3D>()noexcept(true) { return polygons_; };
 	template<>
-	inline ArrayOf<RgbColor>& Data<RgbColor>()noexcept(true) { return rgb_colors_; };
+	inline HostArrayOf<RgbColor>& Data<RgbColor>()noexcept(true) { return rgb_colors_; };
+
+
+	template<class PrimitiveType>
+	inline size_t NumberOf()const noexcept(true) { return 0; }
+
+	template<>
+	inline size_t NumberOf<Vertex3D>()const noexcept(true) { return Data<Vertex3D>().Size(); }
+
+	template<>
+	inline size_t NumberOf<Normal3D>()const noexcept(true) { return Data<Normal3D>().Size(); }
+
+	template<>
+	inline size_t NumberOf<Polygon3D>()const noexcept(true) { return Data<Polygon3D>().Size(); }
+
+	template<>
+	inline size_t NumberOf<RgbColor>()const noexcept(true) { return Data<RgbColor>().Size(); }
 
 	//
 	virtual ~HostData()noexcept(true) {}
 
 };
 
-using ModelId = size_t;
 
 class Model final {
 private:
 
 	static const std::string kDefaultFileName;
 	static const std::string kDefaultModelName;
-	static ModelId last_id;
 
 	std::string model_name_;
 	std::string file_name_;
-
-	HostData host_data_;
 	DeviceData device_data_;
+	HostData host_data_;
 
 public:
 
 	//Default constructor
-	explicit Model()noexcept(true) :
-		host_data_{},
-		device_data_{}{
-		
-		++last_id;
-	
+	explicit Model(const std::string& model_name = kDefaultModelName, const std::string& file_name = kDefaultFileName)noexcept(true):
+		model_name_{ model_name },
+		file_name_{ file_name }{}
+
+	inline void SetHostData(HostData&& data)noexcept(true) {
+
+		host_data_ = std::move(data);
+
 	}
 
-	explicit Model(HostData&& data)noexcept(true) {
 
-		host_data_ = data;
+	inline void SetDeviceData(DeviceData&& data)noexcept(true) {
+
+		device_data_ = std::move(data);
 
 	}
 
 	Model& operator=(Model&& model)noexcept(true) {
 
-		if (&model == this)
+		if (this == &model)
 			return *this;
 
 		Swap(model_name_, model.model_name_ );
 		Swap(file_name_, model.file_name_);
-		Swap(host_data_, model.host_data_);
-		Swap(device_data_, model.device_data_);
+		Swap(std::move(device_data_), std::move(model.device_data_));
+		Swap(std::move(host_data_), std::move(model.host_data_));
 
 		return *this;
 	}
 
-	friend class GpuMemoryManager;
+	NPrimitives PrimitivesNumber()const noexcept(true) {
+
+		return NPrimitives{ NumberOf<Vertex3D>(), NumberOf<Normal3D>(), NumberOf<Polygon3D>(), NumberOf<RgbColor>() };
+
+	}
+
+	template<class PrimitiveType>
+	inline size_t NumberOf()const noexcept(true) { return 0; };
+
+	template<>
+	inline size_t NumberOf<Vertex3D>() const noexcept(true) { return host_data_.NumberOf<Vertex3D>(); };
+
+	template<>
+	inline size_t NumberOf<Normal3D>() const noexcept(true) { return host_data_.NumberOf<Normal3D>(); };
+
+	template<>
+	inline size_t NumberOf<Polygon3D>() const noexcept(true) { return host_data_.NumberOf<Polygon3D>(); };
+
+	template<>
+	inline size_t NumberOf<RgbColor>() const noexcept(true) { return host_data_.NumberOf<RgbColor>(); };
+
+	friend class DataBase;
+	friend class LogicEngine;
 
 	//template<class Vertex3D>
 	//inline size_t NPrimitiveElemennts<Vertex3D>()const noexcept(true) { return ; }
@@ -706,6 +968,284 @@ public:
 
 };
 
+#include <windows.h>
+#include <array>
+
+struct Coordinats {
+	size_t x;
+	size_t y;
+};
+
+using BUFFERINFO = BITMAPINFO;
+
+class AbstractFrame abstract {
+private:
+
+protected:
+
+	FramePixel* buffer_;
+	static const size_t kBitsPerPixel;
+	static const RgbColor kDefaultColor;
+	static const size_t kDefaultWidth;
+	static const size_t kDefaultHeight;
+	size_t width_;
+	size_t height_;
+
+public:
+
+	virtual inline size_t Width()const noexcept(true) { 
+		
+		return width_; 
+	
+	};
+
+	virtual inline size_t Height()const noexcept(true) { 
+		
+		return height_; 
+	
+	};
+
+	virtual inline explicit operator const void* ()const noexcept(true) { 
+		
+		return buffer_;
+
+	}
+
+	inline FramePixel* FramePixelPtr()noexcept(true) { return buffer_; };
+
+	virtual inline explicit operator void* ()noexcept(true) {
+
+		return buffer_;
+
+	}
+
+	explicit AbstractFrame(const size_t width = kDefaultWidth, const size_t height = kDefaultHeight)noexcept(true):
+		width_{ width },
+		height_{ height },
+		buffer_{ nullptr }{}
+
+	virtual ~AbstractFrame()noexcept(true) {
+	
+
+	}
+
+};
+
+#include "../__engine_1.1/__gpu_manager_/CUDAGpuManager.cuh"
+
+class FrameHost;
+
+class FrameDevice final : public AbstractFrame  {
+private:
+
+public:
+
+	explicit FrameDevice(const size_t width, const size_t height)noexcept(true):
+		AbstractFrame{ width, height }{
+
+		buffer_ = static_cast<FramePixel*>(AllocateMemory(width * height * sizeof(FramePixel)));
+
+	}
+
+	~FrameDevice()noexcept(true){
+	
+		FreeMemory(static_cast<void*>(buffer_));
+	
+	}
+	
+	friend void CopyDeviceFrameToHostFrame(FrameHost& host_frame, FrameDevice& device_frame)noexcept(true);
+
+};
+
+
+class FrameHost final : public AbstractFrame {
+private:
+
+	BUFFERINFO buffer_info_;
+
+public:
+
+	explicit FrameHost(FrameHost&& frame)noexcept(true):
+		AbstractFrame{} {
+
+		Swap(buffer_, frame.buffer_);
+		Swap(buffer_info_, frame.buffer_info_);
+		Swap(width_, frame.width_);
+		Swap(height_, frame.height_);
+		//BUFFERINFI...
+
+	}
+
+	explicit FrameHost(const size_t width, const size_t height, const RgbColor& color = kDefaultColor)noexcept(true):
+		AbstractFrame{ width, height },
+		buffer_info_{ 0 }{
+
+		AbstractFrame::buffer_ = new FramePixel[width * height];
+
+		for (size_t i = 0; i < width * height; i++)
+			buffer_[i] = color;
+
+		buffer_info_.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+		buffer_info_.bmiHeader.biWidth = width_;
+		buffer_info_.bmiHeader.biHeight = -(static_cast<int>(height_));
+		buffer_info_.bmiHeader.biPlanes = 1;
+		buffer_info_.bmiHeader.biBitCount = 32;
+		buffer_info_.bmiHeader.biCompression = BI_RGB;
+		buffer_info_.bmiHeader.biSizeImage = ((width_ * 24 + 31) & ~31) / 8 * height_;
+		buffer_info_.bmiHeader.biXPelsPerMeter = 0;
+		buffer_info_.bmiHeader.biYPelsPerMeter = 0;
+		buffer_info_.bmiHeader.biClrUsed = 0;
+		buffer_info_.bmiHeader.biClrImportant = 0;
+
+	}
+
+	FrameHost& operator=(FrameHost&& frame)noexcept(true) {
+
+		if (this == &frame)
+			return *this;
+
+		Swap(buffer_, frame.buffer_);
+		Swap(width_, frame.width_);
+		Swap(height_, frame.height_);
+
+		return *this;
+
+	}
+
+	FrameHost& operator=(const FrameHost& frame)noexcept(true) = delete;
+
+	inline FramePixel& operator[](const Coordinats coord)noexcept(true){
+
+		return buffer_[width_ * coord.y + coord.x];
+
+	}
+	
+	//const FramePixel* Ptr()const noexcept(true) { return buffer_.data(); };
+
+	~FrameHost()noexcept(true) {
+
+		if (buffer_ != nullptr)
+			delete[] buffer_;
+
+	}
+
+	inline const BUFFERINFO& Info()const noexcept(true) { return buffer_info_; };
+
+	friend void CopyDeviceFrameToHostFrame(FrameHost& host_frame, FrameDevice& device_frame)noexcept(true);
+
+};
+
+enum class KeyType : uint32_t {
+
+	Nothing = 0,
+	ArrowLeft = 1,
+	ArrowRight = 2,
+	ArrowUp = 3,
+	ArrowDown = 4,
+	WheelDown = 5,
+	WheelUp = 6,
+	MouseLeft = 7,
+	MouseRight = 8,
+	A = 9,
+	S = 10,
+	D = 11,
+	W = 12
+
+};
+
+struct Keystroke {
+
+	KeyType key_type;
+	long long time_point;
+
+	explicit Keystroke()noexcept(true):
+		key_type{ KeyType::Nothing },
+		time_point{ 0 }{}
+
+	explicit Keystroke(KeyType key, long long now)noexcept(true):
+		key_type{ key },
+		time_point{ now }{}
+
+};
+
+#include <mutex>
+#include <queue>
+
+class KeystrokesQueue final {
+private:
+
+	enum class Operation:uint8_t {
+
+		POP = 0,
+		PUSH = 1
+
+	};
+
+	std::queue<Keystroke> keystrokes_;
+	bool empty_;
+	std::mutex mutex_;
+
+	static const Keystroke kDefaultKeystroke;
+
+	Keystroke ProcessOperation(Operation operation, const Keystroke& keystroke = kDefaultKeystroke)noexcept(true) {
+
+		//mutex_.lock();
+
+		if (operation == Operation::PUSH) {
+
+			keystrokes_.push(keystroke);
+
+			//mutex_.unlock();
+		}
+		else {
+
+			if (!keystrokes_.empty()) {
+
+				Keystroke result = keystrokes_.back();
+				keystrokes_.pop();
+
+				//mutex_.unlock();
+				return result;
+
+			}
+			//mutex_.unlock();
+			return Keystroke{};
+
+		}
+
+
+	}
+
+public:
+
+	explicit KeystrokesQueue()noexcept(true):
+		empty_{ true },
+		mutex_{},
+		keystrokes_{} { }
+
+	void Push(const Keystroke& keystroke)noexcept(true) {
+
+		mutex_.lock();
+		ProcessOperation(Operation::PUSH, keystroke);
+		mutex_.unlock();
+
+	}
+
+	Keystroke Pop()noexcept(true) {
+
+		mutex_.lock();
+		Keystroke keystroke = ProcessOperation(Operation::POP);;
+		mutex_.unlock();
+
+		return keystroke;
+
+	}
+
+};
+
+using KeystrProcFunc = std::function<void(const KeyType&)>;
+using LogicFunc = std::function<void()>;
+using NextKeystroke = std::function<Keystroke()>;
 
 
 #endif //ENGINE_TYPES_HPP_

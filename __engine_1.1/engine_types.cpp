@@ -1,5 +1,12 @@
 #include "engine_types.hpp"
 #include "engine_types.hpp"
-ModelId Model::last_id = 0;
+
 const std::string Model::kDefaultFileName{ "Default file name." };
 const std::string Model::kDefaultModelName{ "Default model name." };
+
+const size_t AbstractFrame::kBitsPerPixel = sizeof(FramePixel) * std::numeric_limits<uint8_t>::digits;
+const RgbColor AbstractFrame::kDefaultColor = { 0, 0, 0, 0 };
+const size_t AbstractFrame::kDefaultWidth = 1920;
+const size_t AbstractFrame::kDefaultHeight = 1080;
+
+const Keystroke KeystrokesQueue::kDefaultKeystroke = Keystroke{};
