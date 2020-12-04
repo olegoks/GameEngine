@@ -3,35 +3,44 @@
 //Engine static fields
 EngineDestroyer Engine::destroyer{};
 Engine* Engine::self_ = nullptr;
-const KeystrProcFunc Engine::kDefaultKeystrProcFunc = [](const Keystroke&){};
-const LogicFunc Engine::kDefaultLogicFunc = [](){};
 
 //Default directory with object files(.obj)
 const std::string Engine::kDefaultDirectory = "";
+
+
+using namespace std::literals;
+const std::chrono::high_resolution_clock::duration Engine::kTimeToUpdateLogic = 10ms;
+const size_t Engine::kDefaultFps = 100;
+const std::chrono::milliseconds Engine::ms_to_frame = std::chrono::milliseconds(1000 / kDefaultFps);
 
 //Default costructor
 Engine::Engine()noexcept(true):
 	main_window_{},
 	data_base_{},
-	//Initialize options struct
+	options_{
+
+		kTimeToUpdateLogic,
+		ms_to_frame,
+		"__obj_models_\\"
+
+	},
 	//Initialize memory manager
 	thread_{},
 	log_console_{ nullptr },
-	loop_is_running_{ false }{
+	loop_is_running_{ false },
+	frame_{ nullptr },
+	graphic_engine_{  }{
 
 	data_base_.ObjFilesDir(kDefaultDirectory);
 
 }
 
-std::wstring Engine::ConvertStringtToWstring(const std::string& str) const noexcept(true)
-{
+std::wstring Engine::ConvertStringtToWstring(const std::string& str) const noexcept(true){
 
 	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 	
 	return converter.from_bytes(str);
 }
-
-
 
 //Get engine reference
 Engine& Engine::Instance()noexcept(false) {
@@ -95,30 +104,37 @@ void Engine::InitWindow(const HINSTANCE hInstance) const noexcept(true){
 
 void Engine::InitKeystrProcFunc(const KeystrProcFunc& func) noexcept(true){
 
-	keystr_proc_func_ = func;
+	logic_engine_.PlugKeystrProcFunction(func);
 
 }
 
 void Engine::InitLogicFunc(const LogicFunc& func) noexcept(true){
 
-	logic_func_ = func;
+	logic_engine_.PlugLogicFunction(func);
 
 }
 
 void Engine::InitWindowSize(const size_t width, const size_t height) const noexcept(true){
 
+
 	//...
 
 }
 
-void Engine::StartMainLoop() noexcept(true){
+void Engine::StartMainLoop()noexcept(true){
 
 	main_window_.RegisterWindowClass();
 	main_window_.Create();
 
 	LoadModelsToGpu();
 
-	//StartLoop();// 
+	graphic_engine_.PlugCamera(&camera_);
+	graphic_engine_.PlugDeviceData(data_base_.GetDeviceData());
+
+	logic_engine_.PlugModels(&data_base_.Models());
+	logic_engine_.PlugKeystrokesQueue(main_window_.KeystrokesQueue());
+
+	//Start second thread for engine main loop
 	thread_ = std::thread{ &Engine::StartLoop, this };
 
 }
@@ -138,20 +154,8 @@ void Engine::Stop() noexcept(true){
 
 }
 
-//void Engine::OutputModelsInfo() noexcept(true){
-//	
-//	data_base_.OutputModelsInfo();
-//
-//}
-
-using namespace std::literals;
-const std::chrono::high_resolution_clock::duration Engine::kTimeToUpdateLogic = 10ms;
-const size_t Engine::kDefaultFps = 60;
-const std::chrono::milliseconds Engine::ms_to_frame = std::chrono::milliseconds(1000 / kDefaultFps);
-
 void Engine::StartLoop()noexcept(true){
 
-	MessageBox(nullptr, L"Loop is running.", nullptr, NULL);
 	using namespace std::chrono;
 	using duration = high_resolution_clock::duration;
 	using time_point = high_resolution_clock::time_point;
@@ -165,7 +169,6 @@ void Engine::StartLoop()noexcept(true){
 
 	loop_is_running_ = true;
 
-
 	while (loop_is_running_) {
 
 		cycle_beg = high_resolution_clock::now();
@@ -173,18 +176,18 @@ void Engine::StartLoop()noexcept(true){
 		previous = cycle_beg;
 		lag += elapsed;
 
+		//off
 		ProcessInput();
 
 		while ( lag >= options_.time_to_update_logic) {
 
+			//off
 			UpdateLogic();
 			lag -= options_.time_to_update_logic;
 
 		}
 
-		std::cout << "RENDER" << std::endl;
 		Render();
-		SwapBuffers();
 		ShowFrame();
 
 		render_and_update_end = high_resolution_clock::now();
@@ -197,26 +200,30 @@ void Engine::StartLoop()noexcept(true){
 
 }
 
-void Engine::ProcessInput() const noexcept(true)
-{
-}
+void Engine::ProcessInput() const noexcept(true){
 
-void Engine::UpdateLogic() const noexcept(true){
-
+	
 
 }
 
-void Engine::Render()const noexcept(true){
-	//std::cout << "render";
+void Engine::UpdateLogic()noexcept(true){
+
+	logic_engine_.UpdateWorldLogic();
+
 }
 
-void Engine::ShowFrame() const noexcept(true)
-{
+void Engine::Render()noexcept(true){
+
+	frame_ = &graphic_engine_.RenderMeshFrame();
+	
 }
 
-void Engine::SwapBuffers() const noexcept(true)
-{
+void Engine::ShowFrame()noexcept(true){
+
+	main_window_.ShowFrame(*frame_);
+
 }
+
 
 void Engine::LoadModelsToGpu()noexcept(true){
 
@@ -227,26 +234,48 @@ void Engine::LoadModelsToGpu()noexcept(true){
 
 void Engine::AllocateMemory()noexcept(true){
 
-	const size_t models_number = data_base_.ModelsNumber();
-
-	for (size_t i = 0; i < models_number; i++) {
-
-		Model& model = data_base_[i];
-		gpu_memory_manager_.Allocate(model);
-
-	}
+	data_base_.AllocateGpuMemoryForModels();
 
 }
 
 void Engine::CopyModels()noexcept(true){
 
-	const size_t models_number = data_base_.ModelsNumber();
-
-	for (size_t i = 0; i < models_number; i++) {
-
-		Model& model = data_base_[i];
-		gpu_memory_manager_.CopyModel(model);
-
-	}
+	data_base_.CopyModelsToGpu();
 
 }
+
+
+void Engine::RotateModel(ModelId model_id, const float alpha_degree, const Vector3D& around_vector, const Vertex3D& around_point) {
+
+	logic_engine_.RotateModel(model_id, alpha_degree, around_vector, around_point);
+}
+//}
+//void Engine::TranslateModel(const unsigned int model_id, const Vertex3D& translate_vertex)const {
+//
+//	logic_engine_->TranslateModel(model_id, translate_vertex);
+//
+//
+//}
+//void Engine::TranslateCamera(const unsigned int camera_id, const Vertex3D& delta_vertex) {
+//
+//	// 
+//	camera_->Translate(delta_vertex);
+//
+//}
+//void Engine::RotateCamera(const unsigned int camera_id, const float alpha_degree, const Vector3D& rotate_vector, const Vertex3D& rotate_vertex) {
+//
+//	camera_->RotateCamera(alpha_degree, rotate_vector, rotate_vertex);
+//
+//}
+//
+//void Engine::ScaleModel(const unsigned int model_id, const float coefficient) {
+//
+//	logic_engine_->ScaleModel(model_id, coefficient);
+//
+//}
+//
+//const Vertex3D* Engine::GetCameraPosition(const unsigned int camera_id) const noexcept {
+//
+//	return camera_->GetPosition();
+//
+//}
