@@ -13,6 +13,8 @@
 #include "__database_/DataBase.hpp"
 #include "__console_/Console.hpp"
 #include "../__engine_1.1/__gpu_manager_/GpuManager.hpp"
+#include "__graphic_engine_/GraphicEngine.hpp"
+#include "../__engine_1.1/__logic_engine_/LogicEngine.hpp"
 
 //Func = function
 //Proc = processing, process
@@ -51,33 +53,23 @@ public:
 
 };
 
-using KeystrProcFunc = std::function<void(const Keystroke&)>;
-using LogicFunc = std::function<void()>;
+
+//Engine options. Start options are default.
+static struct Options {
+
+	std::chrono::high_resolution_clock::duration time_to_update_logic;
+	std::chrono::high_resolution_clock::duration fps_limit;
+	mutable std::string dir_path_;
+
+};
 
 class Engine final{
 private:
-
-	//Engine options. Start options are default.
-	struct Options {
-
-		std::chrono::high_resolution_clock::duration time_to_update_logic;
-		std::chrono::high_resolution_clock::duration fps_limit;
-		mutable std::string dir_path_;
-		
-	};
 
 	//Default options 
 	static const std::chrono::high_resolution_clock::duration kTimeToUpdateLogic;
 	static const std::chrono::milliseconds ms_to_frame;
 
-
-	//Default KeystrProcFunc anf LogicFunc
-	static const KeystrProcFunc kDefaultKeystrProcFunc;
-	static const LogicFunc kDefaultLogicFunc;
-
-	KeystrProcFunc keystr_proc_func_;
-	LogicFunc logic_func_;
-	
 	//Holy of all saints
 	static Engine* self_;
 	static EngineDestroyer destroyer;
@@ -85,30 +77,41 @@ private:
 	//Engine options
 	Options options_;
 
-	//Main engine thread
+	//Main engine thread.
+	//Loop stops if Window 
+	//gets Message WM_DESTROY.
 	std::thread thread_;
 
+	//
+	DeviceData device_data_;
+
 	//Main engine subsystems
+	//DataBase contains all models and their info
 	DataBase data_base_;
 	Window main_window_;
-	GpuMemoryManager gpu_memory_manager_;
-	
+	GraphicEngine graphic_engine_;
+	LogicEngine logic_engine_;
+	Camera camera_;
+
+	//If there is no console Console* pointer is nullptr.
 	mutable Console* log_console_;
 	
 	//
 	bool loop_is_running_;
 
+	//
+	const FrameHost* frame_;
 	//Default constructor
 	explicit Engine()noexcept(true);
 
-	//Private methods
+	//RgbColor RandomColor()const noexcept(true);
+
 	std::wstring ConvertStringtToWstring(const std::string& str)const noexcept(true);
 	void StartLoop()noexcept(true);
 	void ProcessInput()const noexcept(true);
-	void UpdateLogic()const noexcept(true);
-	void Render()const noexcept(true);
-	void ShowFrame()const noexcept(true);
-	void SwapBuffers()const noexcept(true);
+	void UpdateLogic()noexcept(true);
+	void Render()noexcept(true);
+	void ShowFrame()noexcept(true);
 	void LoadModelsToGpu()noexcept(true);
 	void AllocateMemory()noexcept(true);
 	void CopyModels()noexcept(true);
@@ -136,7 +139,8 @@ public:
 	//void OutputModelsInfo()noexcept(true);
 
 	//Models manipulations
-
+	//void TranslateModel(ModelId model_id, );
+	void RotateModel(ModelId model_id, const float alpha_degree, const Vector3D& around_vector, const Vertex3D& around_point);
 	friend class EngineDestroyer;
 
 };
