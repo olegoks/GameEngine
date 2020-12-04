@@ -11,9 +11,9 @@ Console::Console(const std::wstring& title)noexcept(true){
 	if (AllocConsole()) {
 
 		freopen("CONOUT$", "wt", stdout);
-		SetConsoleTitle(title_.c_str());
+		SetConsoleTitle((LPWSTR)title_.c_str());
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_RED);
-
+		
 		//Hide carrete
 		HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
 		CONSOLE_CURSOR_INFO cursorInfo;
@@ -23,7 +23,7 @@ Console::Console(const std::wstring& title)noexcept(true){
 
 	}
 	else
-		MessageBox (NULL, L"Failed log console creation.", NULL, NULL);
+		MessageBox(NULL,(LPWSTR) L"Failed log console creation.", NULL, NULL);
 
 }
 
