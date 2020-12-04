@@ -316,9 +316,9 @@ Polygon3D ObjFile::ProcessPrimitive<Polygon3D>(std::string& primitive_str)const 
 
 		//Process "uint//uint"
 		size_t pos = size_t_str.find("/");
-		polygon.ratios[i].vertex_n = ConvertStrTo<size_t>(size_t_str.substr(0, pos));
+		polygon.ratios[i].vertex_n = ConvertStrTo<size_t>(size_t_str.substr(0, pos)) - 1;// << Correction. Arrays begin with 0.
 		pos = size_t_str.rfind("/");
-		polygon.ratios[i].normal_n = ConvertStrTo<size_t>(size_t_str.substr(pos, size_t_str.size() - pos));
+		polygon.ratios[i].normal_n = ConvertStrTo<size_t>(size_t_str.substr(pos, size_t_str.size() - pos)) - 1;
 
 		primitive_str = reg_result.suffix();
 	}
