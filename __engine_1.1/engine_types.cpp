@@ -10,3 +10,10 @@ const size_t AbstractFrame::kDefaultWidth = 1920;
 const size_t AbstractFrame::kDefaultHeight = 1080;
 
 const Keystroke KeystrokesQueue::kDefaultKeystroke = Keystroke{};
+
+std::wstring ConvertStringToWstring(const std::string& str) noexcept(true) {
+
+	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+
+	return converter.from_bytes(str);
+}

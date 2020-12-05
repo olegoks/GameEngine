@@ -10,6 +10,7 @@
 
 
 using ModelId = size_t;
+using CameraId = size_t;
 
 struct Ratio {
 	union {
@@ -826,6 +827,21 @@ public:
 		return *this;
 	}
 
+	void CorrectPolygonOffset(const NPrimitives& polygon_offset)noexcept(true) {
+
+		for (size_t i = 0; i < polygons_.Size(); i++){
+			
+			for (size_t j = 0; j < 3; j++) {
+
+				polygons_[i].ratios[j].vertex_n += polygon_offset.n_vertexs;
+				polygons_[i].ratios[j].normal_n += polygon_offset.n_normals;
+
+			}
+			
+		}
+		
+	}
+
 	/*template<class PrimitiveType>
 	inline Location<PrimitiveType> RetLocation()const noexcept(true) { return Location<PrimitiveType>{}; };
 	template<>
@@ -895,12 +911,18 @@ private:
 	DeviceData device_data_;
 	HostData host_data_;
 
+
+	//Test
+	Vertex3D model_center_;
+
 public:
 
 	//Default constructor
 	explicit Model(const std::string& model_name = kDefaultModelName, const std::string& file_name = kDefaultFileName)noexcept(true):
 		model_name_{ model_name },
-		file_name_{ file_name }{}
+		file_name_{ file_name },
+		//Test
+		model_center_{ 0.0, 0.0, 0.0 }{}
 
 	inline void SetHostData(HostData&& data)noexcept(true) {
 
@@ -1246,6 +1268,31 @@ public:
 using KeystrProcFunc = std::function<void(const KeyType&)>;
 using LogicFunc = std::function<void()>;
 using NextKeystroke = std::function<Keystroke()>;
+using StartPositionFunc = std::function<void()>;
 
+#include <string>
+#include <codecvt>
+
+std::wstring ConvertStringToWstring(const std::string& str)noexcept(true);
+
+template<class PrimitiveType>
+void RotatePrimitive(PrimitiveType& vertex, float alpha_rad, const Vector3D& around_vector, const Vertex3D& around_vertex)noexcept(true) {
+
+	const float sin_alpha = sin(alpha_rad);
+	const float cos_alpha = cos(alpha_rad);
+
+	float VX = around_vector.x;
+	float VY = around_vector.y;
+	float VZ = around_vector.z;
+
+	float XP = vertex.x - around_vertex.x;
+	float YP = vertex.y - around_vertex.y;
+	float ZP = vertex.z - around_vertex.z;
+
+	vertex.x = (cos_alpha + (1 - cos_alpha) * VX * VX) * XP + ((1 - cos_alpha) * VX * VY - sin_alpha * VZ) * YP + ((1 - cos_alpha) * VX * VZ + sin_alpha * VY) * ZP + around_vertex.x;
+	vertex.y = ((1 - cos_alpha) * VY * VX + sin_alpha * VZ) * XP + (cos_alpha + (1 - cos_alpha) * VY * VY) * YP + ((1 - cos_alpha) * VY * VZ - sin_alpha * VX) * ZP + around_vertex.y;
+	vertex.z = ((1 - cos_alpha) * VZ * VX - sin_alpha * VY) * XP + ((1 - cos_alpha) * VZ * VY + sin_alpha * VX) * YP + (cos_alpha + (1 - cos_alpha) * VZ * VZ) * ZP + around_vertex.z;
+
+}
 
 #endif //ENGINE_TYPES_HPP_
