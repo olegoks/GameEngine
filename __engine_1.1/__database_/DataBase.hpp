@@ -30,7 +30,7 @@ private:
 	
 	//Load info from one object file
 	void LoadObjFile(const std::string& file_name)noexcept(true);
-	void CopyModelToGpu(Model& model)noexcept(true);
+	void CopyModelToGpu(Model& model, const NPrimitives& polygon_offset)noexcept(true);
 
 public:
 

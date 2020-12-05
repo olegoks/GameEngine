@@ -157,6 +157,9 @@ void ObjFile::Read() noexcept(true) {
 	file_object_->seekg(0, std::ios::beg);
 	size_t n_of_read_lines = 0;
 
+	//
+	RgbColor last_color{};
+
 	while (std::getline(*file_object_, line)) {
 
 		n_of_read_lines++;
@@ -183,9 +186,11 @@ void ObjFile::Read() noexcept(true) {
 
 			break;
 		}
+
 		case Primitive::POLYGON: {
 
-			const Polygon3D polygon = ProcessLine<Polygon3D>(line);
+			Polygon3D polygon = ProcessLine<Polygon3D>(line);
+			polygon.color = last_color;
 			data_.Data<Polygon3D>().PushBack(polygon);
 
 			break;
@@ -193,8 +198,9 @@ void ObjFile::Read() noexcept(true) {
 		case Primitive::RGB_COLOR: {
 
 			const RgbColor rgb_color = ProcessLine<RgbColor>(line);
+			last_color = rgb_color;
 			data_.Data<RgbColor>().PushBack(rgb_color);
-
+			
 			break;
 		}
 
@@ -318,7 +324,7 @@ Polygon3D ObjFile::ProcessPrimitive<Polygon3D>(std::string& primitive_str)const 
 		size_t pos = size_t_str.find("/");
 		polygon.ratios[i].vertex_n = ConvertStrTo<size_t>(size_t_str.substr(0, pos)) - 1;// << Correction. Arrays begin with 0.
 		pos = size_t_str.rfind("/");
-		polygon.ratios[i].normal_n = ConvertStrTo<size_t>(size_t_str.substr(pos, size_t_str.size() - pos)) - 1;
+		polygon.ratios[i].normal_n = ConvertStrTo<size_t>(size_t_str.substr(pos + 1, size_t_str.size() - pos)) - 1;
 
 		primitive_str = reg_result.suffix();
 	}
@@ -328,6 +334,13 @@ Polygon3D ObjFile::ProcessPrimitive<Polygon3D>(std::string& primitive_str)const 
 
 template<>
 RgbColor ObjFile::ProcessPrimitive<RgbColor>(std::string& str)const noexcept(true) {
+
+	//const size_t beg_len = str.length();
+	//for (size_t i = 0; i < 6 - beg_len; ++i) {
+
+	//	str.push_back('0');
+
+	//}
 
 	RgbColor rgb_color;
 	std::smatch reg_result;

@@ -11,10 +11,12 @@ DataBase::DataBase()noexcept(true):
 void DataBase::LoadObjFiles()noexcept(true){
 
 	//FIX
-	std::cout << "Directory with object file: " << obj_files_dir_ << std::endl;
+	std::cout << std::endl << "Directory with object file: " << obj_files_dir_ << std::endl;
 
 	for (auto& obj_file_name : obj_files_list_)
 		LoadObjFile(obj_file_name);
+
+	obj_files_list_.clear();
 
 }
 
@@ -38,10 +40,10 @@ void DataBase::IncludeObjFileName(const std::initializer_list<std::string>& list
 	for (auto& obj : list) {
 
 		//Twice including test
-		auto name_it = std::find(obj_files_list_.cbegin(), obj_files_list_.cend(), obj);
-		bool list_contains_name_yet = !(name_it == obj_files_list_.cend());
+	//	auto name_it = std::find(obj_files_list_.cbegin(), obj_files_list_.cend(), obj);
+	//	bool list_contains_name_yet = !(name_it == obj_files_list_.cend());
 
-		if (!list_contains_name_yet)
+		//if (!list_contains_name_yet)
 			obj_files_list_.push_back(obj);
 
 	}
@@ -73,26 +75,31 @@ void DataBase::AllocateGpuMemoryForModels() noexcept(true){
 
 }
 
-void DataBase::CopyModelToGpu(Model& model)noexcept(true) {
+void DataBase::CopyModelToGpu(Model& model, const NPrimitives& polygon_offset)noexcept(true) {
 	
 	//????
-
+	
 	model.device_data_.vertexs_.Copy(model.host_data_.Data<Vertex3D>());
 	model.device_data_.normals_.Copy(model.host_data_.Data<Normal3D>());
-	model.device_data_.polygons_.Copy(model.host_data_.Data<Polygon3D>());
+
+	HostData correct_host_data{ model.host_data_ };
+	correct_host_data.CorrectPolygonOffset(polygon_offset);
+	model.device_data_.polygons_.Copy(correct_host_data.Data<Polygon3D>());
+
+	//model.device_data_.polygons_.Copy(model.host_data_.Data<Polygon3D>());
 	model.device_data_.rgb_colors_.Copy(model.host_data_.Data<RgbColor>());
 
 }
 
 void DataBase::CopyModelsToGpu() noexcept(true){
 
-	DevicePtrs ptrs;
-	ptrs = common_gpu_memory_.Ptrs();
+	NPrimitives polygon_offset{ 0 };
 
 	for (size_t model_index = 0; model_index < models_.Size(); model_index++) {
 
 		Model& model = models_[model_index];
-		CopyModelToGpu(model);
+		CopyModelToGpu(model, polygon_offset);
+		polygon_offset = polygon_offset + model.PrimitivesNumber();
 
 	}
 
