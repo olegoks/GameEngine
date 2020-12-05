@@ -199,23 +199,27 @@ void Window::Create()noexcept(true){
 
 		void Window::ShowFrame(const FrameHost& frame)noexcept(true) {
 			
-			//using namespace std::chrono;
-			//typedef high_resolution_clock::time_point time_point;
-			//typedef high_resolution_clock::duration duration;
+			using namespace std::chrono;
+			using time_point = high_resolution_clock::time_point;
+			using duration = high_resolution_clock::duration;
 
-			//time_point second_time_point_count_fps = high_resolution_clock::now();
+			static time_point last_time_point = high_resolution_clock::now();
 
-			//duration render_frame_duration = second_time_point_count_fps - first_time_point_count_fps_;
-			//int current_fps = 0;
-			//current_fps = 1000.0f / (float)duration_cast<milliseconds>(render_frame_duration).count();
+			duration render_frame_duration = high_resolution_clock::now() - last_time_point;
 
-			//if (current_fps > 100) { current_fps = 99; }
-			//	else
-			//		if (current_fps < 0) { current_fps = 0; };
-			////fps = 30;
-			//char fps_char[3] = { "00" };
-			//_itoa(current_fps, fps_char, 10);
-			//wchar_t* string = ConvertString(fps_char);
+			size_t render_duration_ms = duration_cast<milliseconds>(render_frame_duration).count();
+			size_t current_fps = 1000.0f / static_cast<float>(render_duration_ms);
+
+			if (current_fps > 100) { current_fps = 99; }
+				else
+					if (current_fps < 0) { current_fps = 0; };
+
+			//std::wstring fps_wstr = ConvertStringToWstring(std::to_string(current_fps));
+			SetWindowTextA(
+				self_hWnd_,
+				std::to_string(current_fps).c_str()
+			);
+			//TextOut(device_context_, 5, 5, fps_wstr.c_str(), 2);
 
 			SetDIBitsToDevice(
 					device_context_,
@@ -232,9 +236,9 @@ void Window::Create()noexcept(true){
 					DIB_PAL_COLORS
 			);
 
-			/*TextOut(DeviceContext, 5, 5, string, 2);
-
-			first_time_point_count_fps_ = high_resolution_clock::now();*/
+			last_time_point = high_resolution_clock::now();
+			
+			//first_time_point_count_fps_ = high_resolution_clock::now();*/
 
 				//int SetDIBitsToDevice(
 				//	HDC hdc,                 // дескриптор DC
