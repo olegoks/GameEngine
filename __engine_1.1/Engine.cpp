@@ -7,11 +7,11 @@ Engine* Engine::self_ = nullptr;
 //Default directory with object files(.obj)
 const std::string Engine::kDefaultDirectory = "";
 
-
 using namespace std::literals;
 const std::chrono::high_resolution_clock::duration Engine::kTimeToUpdateLogic = 10ms;
-const size_t Engine::kDefaultFps = 100;
+const size_t Engine::kDefaultFps = 30;
 const std::chrono::milliseconds Engine::ms_to_frame = std::chrono::milliseconds(1000 / kDefaultFps);
+const StartPositionFunc Engine::kDefaultStartPositionFunc = []() {};
 
 //Default costructor
 Engine::Engine()noexcept(true):
@@ -29,17 +29,11 @@ Engine::Engine()noexcept(true):
 	log_console_{ nullptr },
 	loop_is_running_{ false },
 	frame_{ nullptr },
-	graphic_engine_{  }{
+	graphic_engine_{  },
+	start_pos_func_{ kDefaultStartPositionFunc }{
 
 	data_base_.ObjFilesDir(kDefaultDirectory);
 
-}
-
-std::wstring Engine::ConvertStringtToWstring(const std::string& str) const noexcept(true){
-
-	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	
-	return converter.from_bytes(str);
 }
 
 //Get engine reference
@@ -82,14 +76,13 @@ void Engine::LoadModels(const std::initializer_list<std::string>& list) noexcept
 
 	data_base_.IncludeObjFileName(list);
 	data_base_.LoadObjFiles();
-
 }
 
 void Engine::CreateConsole(const std::string& console_name) const noexcept(true){
 
 	if (log_console_ == nullptr) {
 
-		const std::wstring wconsole_name = ConvertStringtToWstring(console_name);
+		const std::wstring wconsole_name = ConvertStringToWstring(console_name);
 		log_console_ = new Console{ wconsole_name };
 		
 	}
@@ -123,6 +116,8 @@ void Engine::InitWindowSize(const size_t width, const size_t height) const noexc
 
 void Engine::StartMainLoop()noexcept(true){
 
+
+
 	main_window_.RegisterWindowClass();
 	main_window_.Create();
 
@@ -134,13 +129,15 @@ void Engine::StartMainLoop()noexcept(true){
 	logic_engine_.PlugModels(&data_base_.Models());
 	logic_engine_.PlugKeystrokesQueue(main_window_.KeystrokesQueue());
 
+	start_pos_func_();
+	
 	//Start second thread for engine main loop
 	thread_ = std::thread{ &Engine::StartLoop, this };
 
 }
 
 void Engine::ShowWindow() noexcept(true){
-
+	
 	main_window_.Show();
 	main_window_.StartMessageLoop();
 	loop_is_running_ = false;
@@ -175,13 +172,13 @@ void Engine::StartLoop()noexcept(true){
 		elapsed = cycle_beg - previous;
 		previous = cycle_beg;
 		lag += elapsed;
-
+		
 		//off
 		ProcessInput();
 
-		while ( lag >= options_.time_to_update_logic) {
+		while (lag >= options_.time_to_update_logic) {
 
-			//off
+		//off
 			UpdateLogic();
 			lag -= options_.time_to_update_logic;
 
@@ -194,7 +191,7 @@ void Engine::StartLoop()noexcept(true){
 		render_and_update_duration = render_and_update_end - cycle_beg;
 
 		if (render_and_update_duration < options_.fps_limit)
-			std::this_thread::sleep_for(options_.fps_limit - render_and_update_duration);
+		std::this_thread::sleep_for(options_.fps_limit - render_and_update_duration);
 
 	}
 
@@ -245,37 +242,38 @@ void Engine::CopyModels()noexcept(true){
 }
 
 
-void Engine::RotateModel(ModelId model_id, const float alpha_degree, const Vector3D& around_vector, const Vertex3D& around_point) {
+void Engine::RotateModel(ModelId model_id, const float alpha_degree, const Vector3D& around_vector, const Vertex3D& around_point)noexcept(true) {
 
 	logic_engine_.RotateModel(model_id, alpha_degree, around_vector, around_point);
 }
-//}
-//void Engine::TranslateModel(const unsigned int model_id, const Vertex3D& translate_vertex)const {
-//
-//	logic_engine_->TranslateModel(model_id, translate_vertex);
-//
-//
-//}
-//void Engine::TranslateCamera(const unsigned int camera_id, const Vertex3D& delta_vertex) {
-//
-//	// 
-//	camera_->Translate(delta_vertex);
-//
-//}
-//void Engine::RotateCamera(const unsigned int camera_id, const float alpha_degree, const Vector3D& rotate_vector, const Vertex3D& rotate_vertex) {
-//
-//	camera_->RotateCamera(alpha_degree, rotate_vector, rotate_vertex);
-//
-//}
-//
-//void Engine::ScaleModel(const unsigned int model_id, const float coefficient) {
-//
-//	logic_engine_->ScaleModel(model_id, coefficient);
-//
-//}
-//
-//const Vertex3D* Engine::GetCameraPosition(const unsigned int camera_id) const noexcept {
-//
-//	return camera_->GetPosition();
-//
-//}
+
+void Engine::TranslateModel(const ModelId model_id, const Vertex3D& translate_vertex)noexcept(true){
+
+	logic_engine_.TranslateModel(model_id, translate_vertex);
+
+
+}
+
+void Engine::TranslateCamera(const CameraId camera_id, const Vertex3D& delta_vertex)noexcept(true) {
+
+	camera_.Translate(delta_vertex);
+
+}
+
+void Engine::RotateCamera(const CameraId camera_id, const float alpha_degree, const Vector3D& around_vector, const Vertex3D& around_point)noexcept(true){
+
+	camera_.Rotate(alpha_degree, around_vector, around_point);
+
+}
+
+void Engine::ScaleModel(const ModelId model_id, const float coefficient)noexcept(true) {
+
+	logic_engine_.ScaleModel(model_id, coefficient);
+
+}
+
+const Vertex3D& Engine::CameraPosition(const ModelId camera_id) const noexcept(true){
+
+	return camera_.GetPosition();
+
+}

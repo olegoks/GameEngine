@@ -5,10 +5,10 @@
 #include <string>
 #include <windows.h>
 #include <functional>
-#include <codecvt>
+
 #include <exception>
 #include <thread>
-
+#include "engine_types.hpp"
 #include "__window_/Window.hpp"
 #include "__database_/DataBase.hpp"
 #include "__console_/Console.hpp"
@@ -77,6 +77,10 @@ private:
 	//Engine options
 	Options options_;
 
+	//
+	static const StartPositionFunc kDefaultStartPositionFunc;
+	StartPositionFunc start_pos_func_;
+
 	//Main engine thread.
 	//Loop stops if Window 
 	//gets Message WM_DESTROY.
@@ -106,7 +110,6 @@ private:
 
 	//RgbColor RandomColor()const noexcept(true);
 
-	std::wstring ConvertStringtToWstring(const std::string& str)const noexcept(true);
 	void StartLoop()noexcept(true);
 	void ProcessInput()const noexcept(true);
 	void UpdateLogic()noexcept(true);
@@ -132,6 +135,7 @@ public:
 	void InitWindow(const HINSTANCE hInstance)const noexcept(true);
 	void InitKeystrProcFunc(const KeystrProcFunc& func)noexcept(true);
 	void InitLogicFunc(const LogicFunc& func)noexcept(true);
+	void InitStartPosFunc(const StartPositionFunc& func)noexcept(true) { start_pos_func_ = func; }
 	void InitWindowSize(const size_t width, const size_t height)const noexcept(true);
 	void StartMainLoop()noexcept(true);
 	void ShowWindow()noexcept(true);
@@ -140,7 +144,14 @@ public:
 
 	//Models manipulations
 	//void TranslateModel(ModelId model_id, );
-	void RotateModel(ModelId model_id, const float alpha_degree, const Vector3D& around_vector, const Vertex3D& around_point);
+	void RotateModel(const ModelId model_id, const float alpha_degree, const Vector3D& around_vector, const Vertex3D& around_point)noexcept(true);
+	void RotateCamera(const CameraId camera_id, const float alpha_degree, const Vector3D& around_vector, const Vertex3D& around_point)noexcept(true);
+	void TranslateModel(const ModelId model_id, const Vertex3D& translate_vertex)noexcept(true);
+	void TranslateCamera(const CameraId camera_id, const Vertex3D& delta_vertex)noexcept(true);
+	void ScaleModel(const ModelId model_id, const float coefficient)noexcept(true);
+	inline const Vertex3D& ModelPosition(const ModelId model_id)const noexcept(true) { return logic_engine_.ModelPosition(model_id); };
+	const Vertex3D& CameraPosition(const ModelId camera_id) const noexcept;
+	void CameraPosition(const ModelId camera_id, const Vertex3D& new_pos)noexcept(true) { camera_.Position(new_pos); }
 	friend class EngineDestroyer;
 
 };
