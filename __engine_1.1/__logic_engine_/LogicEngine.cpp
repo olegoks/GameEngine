@@ -35,5 +35,10 @@ void LogicEngine::UpdateWorldLogic()noexcept(true) {
 
 }
 
+const Vertex3D& LogicEngine::ModelPosition(const ModelId model_id)const noexcept(true) {
+
+	return (*models_)[model_id].model_center_;
+
+}
 
 

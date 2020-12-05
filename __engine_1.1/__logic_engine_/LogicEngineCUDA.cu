@@ -28,8 +28,9 @@ __global__ void RotateModelCuda(Vertex3D* const device_vertexs, const unsigned i
 void LogicEngine::RotateModel(const ModelId model_id, const float alpha_degree, const Vector3D& around_vector, const Vertex3D& around_point)noexcept(true) {
 
 	Model& model = (*models_)[model_id];
-
+	
 	float alpha_rad = alpha_degree * kPi / 180.0f;
+	RotatePrimitive<Vertex3D>(model.model_center_, alpha_rad, around_vector, around_point);
 
 	const float sin_alpha = sin(alpha_rad);
 	const float cos_alpha = cos(alpha_rad);
@@ -83,9 +84,14 @@ void LogicEngine::TranslateModel(const ModelId model_id, const Vertex3D& transla
 {
 	Model& model = (*models_)[model_id];
 
+	model.model_center_.x += translate_vertex.x;
+	model.model_center_.y += translate_vertex.y;
+	model.model_center_.z += translate_vertex.z;
+
 	const unsigned int number_of_threads = 1024;
 	const unsigned int number_of_blocks = (model.NumberOf<Vertex3D>() + number_of_threads - 1) / number_of_threads;
 
 	TranslateModelCuda <<<  number_of_blocks, number_of_threads >>> (model.device_data_.Ptrs().vertexs, model.NumberOf<Vertex3D>(), translate_vertex);
 
 }
+

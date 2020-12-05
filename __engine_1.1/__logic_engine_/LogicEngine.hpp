@@ -51,6 +51,7 @@ public:
 	void RotateModel(const ModelId model_id, const float alpha_degree, const Vector3D& around_vector, const Vertex3D& around_vertex)noexcept(true);
 	void ScaleModel(const ModelId model_id, const float coefficient)noexcept(true);
 	void TranslateModel(const ModelId model_id, const Vertex3D& translate_vertex)noexcept(true);
+	const Vertex3D& ModelPosition(const ModelId model_id)const noexcept(true);
 
 };
 
