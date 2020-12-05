@@ -24,14 +24,16 @@ __global__ void DrawLines(const Vertex2D* const vertexs_2d, const Polygon3D* con
 		const unsigned int polygon_number = threadIndex / 3;
 		const unsigned int vertex_number = threadIndex % 3;
 
-		Normal3D normal = normals[device_polygons[polygon_number].ratios[vertex_number].normal_n];
-		float scalar = camera_dir.x * normal.x + camera_dir.y * normal.y + camera_dir.z * normal.z;
-		//if (scalar <= 0.0f) 
+		/*Normal3D normal = normals[device_polygons[polygon_number].ratios[vertex_number].normal_n];
+		float scalar = camera_dir.x * normal.x + camera_dir.y * normal.y + camera_dir.z * normal.z;*/
+
 		{
 
 			const unsigned int first_vertex_index = device_polygons[polygon_number].ratios[vertex_number].vertex_n;
 			const unsigned int second_vertex_number = ((vertex_number + 1) < 3) ? (vertex_number + 1) : 0;
 			const unsigned int second_vertex_index = device_polygons[polygon_number].ratios[second_vertex_number].vertex_n;
+
+			RgbColor polygon_color = device_polygons[polygon_number].color;
 
 			int x1 = vertexs_2d[first_vertex_index].x;
 			int y1 = vertexs_2d[first_vertex_index].y;
@@ -49,18 +51,21 @@ __global__ void DrawLines(const Vertex2D* const vertexs_2d, const Polygon3D* con
 				//
 				int error = deltaX - deltaY;
 
-				display_buffer[display_width * y2 + x2].rgba_alpha = 0;
+				/*display_buffer[display_width * y2 + x2].rgba_alpha = 0;
 				display_buffer[display_width * y2 + x2].rgba_red = 255;
 				display_buffer[display_width * y2 + x2].rgba_green = 0;
-				display_buffer[display_width * y2 + x2].rgba_blue = 0;
+				display_buffer[display_width * y2 + x2].rgba_blue = 0;*/
+
+				display_buffer[display_width * y2 + x2] = polygon_color;
 
 				while (x1 != x2 || y1 != y2)
 				{
 
-					display_buffer[display_width * y1 + x1].rgba_alpha = 0;
+					display_buffer[display_width * y1 + x1] = polygon_color;
+					/*display_buffer[display_width * y1 + x1].rgba_alpha = 0;
 					display_buffer[display_width * y1 + x1].rgba_red = 255;
 					display_buffer[display_width * y1 + x1].rgba_green = 0;
-					display_buffer[display_width * y1 + x1].rgba_blue = 0;
+					display_buffer[display_width * y1 + x1].rgba_blue = 0;*/
 
 					const int error2 = error * 2;
 					//
@@ -134,7 +139,7 @@ __host__ void CopyDeviceFrameToHostFrame(FrameHost& host_frame, FrameDevice& dev
 
 __host__ FrameHost& GraphicEngine::RenderMeshFrame()noexcept(true) {
 
-	FillDeviceFrame(RgbColor{ 255, 166, 128 });
+	FillDeviceFrame(RgbColor{ 59, 67, 73 });
 	/*or (size_t i = 0; i < host_frame_.Width(); i++)
 		for (size_t j = 0; j < host_frame_.Height(); j++)
 			host_frame_[{i, j}] = color;*/
