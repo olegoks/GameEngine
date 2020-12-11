@@ -1157,7 +1157,8 @@ public:
 
 };
 
-enum class KeyType : uint32_t {
+
+enum class Key : uint32_t {
 
 	Nothing = 0,
 	ArrowLeft = 1,
@@ -1175,16 +1176,45 @@ enum class KeyType : uint32_t {
 
 };
 
+enum class Action : uint32_t {
+
+	Nothing = 0,
+	Down = 1,
+	Up = 2
+	
+};
+
+class KeyAction final {
+public:
+	Key key_;
+	Action action_;
+
+	explicit KeyAction()noexcept(true) :
+		key_{ Key::Nothing },
+		action_{ Action::Nothing }{}
+
+	explicit KeyAction(Key key, Action action)noexcept(true) :
+		key_{ key },
+		action_{ action }{}
+
+	inline bool operator !=(const KeyAction& key_action)noexcept(true) {
+
+		return this->key_ != key_action.key_ || this->action_ != key_action.action_;
+
+	}
+
+};
+
 struct Keystroke {
 
-	KeyType key_type;
+	KeyAction key_type;
 	long long time_point;
 
 	explicit Keystroke()noexcept(true):
-		key_type{ KeyType::Nothing },
+		key_type{ KeyAction{} },
 		time_point{ 0 }{}
 
-	explicit Keystroke(KeyType key, long long now)noexcept(true):
+	explicit Keystroke(KeyAction key, long long now)noexcept(true):
 		key_type{ key },
 		time_point{ now }{}
 
@@ -1265,7 +1295,7 @@ public:
 
 };
 
-using KeystrProcFunc = std::function<void(const KeyType&)>;
+using KeystrProcFunc = std::function<void(const KeyAction&)>;
 using LogicFunc = std::function<void()>;
 using NextKeystroke = std::function<Keystroke()>;
 using StartPositionFunc = std::function<void()>;
