@@ -1,6 +1,6 @@
 #include "LogicEngine.hpp"
 
-const KeystrProcFunc LogicEngine::kDefaultKeystrProcFunc = [](const KeyType&) {};
+const KeystrProcFunc LogicEngine::kDefaultKeystrProcFunc = [](const KeyAction&) {};
 const LogicFunc LogicEngine::kDefaultLogicFunc = []() {};
 //const NextKeystroke LogicEngine::kDefaultNextKeystroke = []()->Keystroke { return Keystroke{}; };
 
@@ -25,8 +25,9 @@ void LogicEngine::UpdateWorldLogic()noexcept(true) {
 
 	//Process user input
 	Keystroke keystroke = keystrokes_queue_->Pop();
+	KeyAction useless{ Key::Nothing, Action::Nothing };
 
-	while (keystroke.key_type != KeyType::Nothing) {
+	while (keystroke.key_type != useless) {
 
 		keystr_proc_func_(keystroke.key_type);
 		keystroke = keystrokes_queue_->Pop();
