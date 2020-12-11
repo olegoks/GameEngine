@@ -1,16 +1,72 @@
 #include "__engine_1.1/Engine.hpp"
 
-class Tree final {
+static constexpr size_t kRoadLength = 15;
+static constexpr size_t kTreesNumber = 8;
+static constexpr size_t kTreesFirstId = 0;
+static constexpr size_t kCenterRoadFirstId = kTreesFirstId + kTreesNumber;
+static constexpr size_t kRightRoadFirstId = kCenterRoadFirstId + kRoadLength;
+static constexpr size_t kLeftRoadFirstId = kRightRoadFirstId + kRoadLength;
+static constexpr size_t kRightRightRoadFirstId = kLeftRoadFirstId + kRoadLength;
+static constexpr size_t kLeftLeftRoadFirstId = kRightRightRoadFirstId + kRoadLength;
+static constexpr float kRoadPartWidth = 4.6f * 2.0f;
+static constexpr float kRoadPartLength = 4.0f;
+static constexpr size_t kCommonModelsNumber = kRoadLength * 5 + kTreesNumber/**/;
+static constexpr size_t kCommonSolidRoadPartsNumber = kRoadLength * 2;
+static constexpr size_t kCommonDisconRoadPartsNumber = kRoadLength * 3;
+static constexpr size_t kNumberOfFaceCars = 5;
+static constexpr size_t kMainCarId = kCommonModelsNumber + kNumberOfFaceCars;
+static constexpr float kCarWidth = 1.9f;
+static const Vertex3D kMainCarSpawn{ 0.0, 0.0, -10.0 };
 
-private:
+static bool gas_pressed = false;
+static bool stop_pressed = false;
+//int getRandomNumber(int min, int max)
+//{
+//	static const double fraction = 1.0 / (static_cast<double>(RAND_MAX) + 1.0);
+//	// Равномерно распределяем рандомное число в нашем диапазоне
+//	return static_cast<int>(rand() * fraction * (max - min + 1) + min);
+//}
 
-	ModelId id_;
+static void ProcessKeyboard(KeyAction key)noexcept(true) {
 
-public:
+	Engine& engine = Engine::Instance();
+
+	const Vector3D rotate_vector{ 0.0f, 1.0f, 0.0f };
+	const Vertex3D rotate_vertex{ 0.0f, 0.0f, 0.0f };
+
+	switch (key.action_) {
+
+		
 
 
+		case Action::Up:
+			switch (key.key_) {
 
-};
+			case Key::W:
+				gas_pressed = false;
+				break;
+			}
+		break;
+
+		case Action::Down:
+			switch (key.key_) {
+			case Key::D:
+				engine.TranslateModel(kMainCarId, Vertex3D{ 0.5, 0.0, 0.0 });
+				break;
+			case Key::A:
+
+				engine.TranslateModel(kMainCarId, Vertex3D{ -0.5, 0.0, 0.0 });
+				break;
+			case Key::W:
+				//engine.TranslateModel(kMainCarId, Vertex3D{ 0.0, 0.0, 0.1 });
+				gas_pressed = true;
+				break;
+			}
+			break;
+
+	}
+
+}
 
 class Road final {
 
@@ -22,23 +78,24 @@ private:
 public:
 
 	explicit Road(size_t first_id)noexcept(true):
-		n_parts_{ 10 },
+		n_parts_{ kRoadLength },
 		first_id_{ first_id }{}
 
 	void LoadRoad()const noexcept(true) {
 
 		Engine& engine = Engine::Instance();
 
-		/*for (size_t i = 0; i < n_parts_; i++)
-			engine.LoadModels({"Doroga.obj"});*/
+		const Vertex3D& camera_pos = engine.CameraPosition(0);
 
-		float part_length = 4.0f;
+		for (size_t i = first_id_; i < first_id_ + n_parts_; i++)
+			engine.TranslateModel(i, Vertex3D{0.0, 0.0, camera_pos.z - 25.0f});
+
 		float offset = 0.0f;
 
 		for (size_t i = first_id_; i < first_id_ + n_parts_ ; i++){
 
-			engine.TranslateModel(i, Vertex3D{ 0.0, 0.0, -offset + part_length * 5 });
-			offset += part_length;
+			engine.TranslateModel(i, Vertex3D{ 0.0, 0.0, -offset + kRoadPartLength * static_cast<float>(kRoadLength) });
+			offset += kRoadPartLength;
 
 		}
 
@@ -46,107 +103,91 @@ public:
 
 };
 
-void ProcessKeyboard(KeyType key)noexcept(true) {
+static void LogicFunction()noexcept(true) {
 
 	Engine& engine = Engine::Instance();
 
-	const Vector3D rotate_vector{ 0.0f, 1.0f, 0.0f };
-	const Vertex3D rotate_vertex{ 0.0f, 0.0f, 0.0f };
-
-	switch(key){
-
-	case KeyType::D:
-
-		engine.TranslateModel(18, Vertex3D{0.5, 0.0, 0.0});
-		break;
-	case KeyType::A:
-
-		engine.TranslateModel(18, Vertex3D{ -0.5, 0.0, 0.0 });
-		break;
-
-	}
-
-}
-
-void LogicFunction()noexcept(true) {
-
-	Engine& engine = Engine::Instance();
-	/*
-	const Vector3D rotate_vector{ 0.0f, 1.0f, 0.0f };
-	const Vertex3D rotate_vertex{ 0.0f, 0.0f, 0.0f };
-	engine.RotateModel(0, 1.0f, rotate_vector, rotate_vertex);
-	
-	static float sign = -0.05;
-
-	Vertex3D camera_pos = engine.CameraPosition(0);
-	
-	if (camera_pos.z < -25.0 || camera_pos.z > -5.0) {
-
-		sign = -sign;
-
-	}
-
-	camera_pos.z += static_cast<float>(sign);*/
-	//engine.CameraPosition(0, camera_pos);
-
-	//Vertex3D offset_vertex;
-	//
-	//static size_t counter = 0;
-	//
-	//++counter;
-
-	//if (counter == 1000) {
-
-	//	offset_vertex = Vertex3D{ 0.0, 0.0, 20.0f };
-	//	counter = 0;
-	//}
-	//else
-	//	offset_vertex = Vertex3D{ 0.0, 0.0, -0.02f };
-
-	//for (int i = 0; i < 14; ++i) {
-
-	//	engine.TranslateModel(i, offset_vertex);
-
-	//}
-
-
-	const Vertex3D beg_offset{0.0, 0.0, +40.0 };
+	const Vertex3D beg_offset{ 0.0, 0.0, +60.0 };
 	const Vertex3D& camera_pos = engine.CameraPosition(0);
 
-	for (size_t i = 0; i < 18; i++){
+	for (size_t i = 0; i < kCommonModelsNumber + kNumberOfFaceCars; i++) {
 
-		engine.TranslateModel(i, Vertex3D{ 0.0, 0.0, -0.02 });
+		engine.TranslateModel(i, Vertex3D{ 0.0, 0.0, -0.1 });
 
 		const Vertex3D& model_pos = engine.ModelPosition(i);
-		if (model_pos.z < camera_pos.z - 10.0) {
-
+		if (model_pos.z < camera_pos.z - 15.0) 
 			engine.TranslateModel(i, beg_offset);
-		
-		}
 
 	}
 
+	Vertex3D main_car_pos = engine.ModelPosition(kMainCarId);
+
+	if (gas_pressed)
+		engine.TranslateModel(kMainCarId, Vertex3D{ 0.0, 0.0, 0.05 });
+	else	
+ 	if(engine.ModelPosition(kMainCarId).z > kMainCarSpawn.z && !gas_pressed)
+		engine.TranslateModel(kMainCarId, Vertex3D{ 0.0, 0.0, -0.06 });
+
 }
 
-void StartPosFunc()noexcept(true) {
+static void StartPosFunc()noexcept(true) {
 
 	Engine& engine = Engine::Instance();
 
-	engine.CameraPosition(0, Vertex3D{0.0, 0.0, -20.0});
-	engine.RotateCamera(0, 55.0f, Vector3D{ 1.0, 0.0, 0.0 }, Vertex3D{ 0.0, 0.0, 0.0 });
-	engine.TranslateModel(0, Vertex3D{ -10.0, 0.0, 4.0 });
-	engine.TranslateModel(1, Vertex3D{ 10.0, 0.0, 8.0 });
-	engine.TranslateModel(2, Vertex3D{ -8.0, 0.0, -6.0 });
-	engine.TranslateModel(3, Vertex3D{ 5.0, 0.0, 15.0 });
+	engine.CameraPosition(0, Vertex3D{ 0.0, 0.0, -20.0 });
+	engine.RotateCamera(0, 72.0f, Vector3D{ 1.0, 0.0, 0.0 }, Vertex3D{ 0.0, 0.0, 0.0 });
+	engine.TranslateModel(0, Vertex3D{ -15.0, 0.0, 4.0 });
+	engine.TranslateModel(1, Vertex3D{ 15.0, 0.0, 8.0 });
+	engine.TranslateModel(2, Vertex3D{ -16.0, 0.0, -6.0 });
+	engine.TranslateModel(3, Vertex3D{ 20.0, 0.0, 15.0 });
 
-	engine.TranslateModel(4, Vertex3D{ -9.0, 0.0, 32.0 });
-	engine.TranslateModel(5, Vertex3D{ 7.0, 0.0, 37.0 });
-	engine.TranslateModel(6, Vertex3D{ -5.0, 0.0, -22.0 });
-	engine.TranslateModel(7, Vertex3D{ 11.0, 0.0, 20.0 });
-	engine.TranslateModel(18, Vertex3D{0.0, 0.0, -10.0});
-	Road road{ 8 };
-	road.LoadRoad();
+	engine.TranslateModel(4, Vertex3D{ -14.0, 0.0, 32.0 });
+	engine.TranslateModel(5, Vertex3D{ 19.0, 0.0, 37.0 });
+	engine.TranslateModel(6, Vertex3D{ -17.0, 0.0, -22.0 });
+	engine.TranslateModel(7, Vertex3D{ 16.0, 0.0, 20.0 });
 
+	//Translating Face cars
+	size_t id = kCommonModelsNumber;
+	engine.TranslateModel(id, Vertex3D{ -(kRoadPartWidth) / 4.0f + kRoadPartWidth, 0.0, 0.0 });
+	engine.TranslateModel(id + 1, Vertex3D{ -kRoadPartWidth / 4.0f, 0.0, 30.0 });
+	engine.TranslateModel(id + 2, Vertex3D{ -kRoadPartWidth / 4.0f, 0.0, -12.0 });
+	engine.TranslateModel(id + 3, Vertex3D{ -kRoadPartWidth +(kRoadPartWidth) / 4.0f, 0.0, 17.0 });
+	engine.TranslateModel(id + 4, Vertex3D{ kRoadPartWidth - (kRoadPartWidth) / 4.0f, 0.0, -15.0 });
+ 
+	//engine.
+	Road center_road{ kCenterRoadFirstId };
+	center_road.LoadRoad();
+	
+	Road right_road{ kRightRoadFirstId };
+	right_road.LoadRoad();
+
+	for (size_t i = kRightRoadFirstId; i < kRightRoadFirstId + kRoadLength; i++)
+		engine.TranslateModel(i, Vertex3D{ kRoadPartWidth / 2.0, 0.0, 0.0});
+
+	Road left_road{ kLeftRoadFirstId };
+	left_road.LoadRoad();
+
+	for (size_t i = kLeftRoadFirstId; i < kLeftRoadFirstId + kRoadLength; i++)
+		engine.TranslateModel(i, Vertex3D{ -kRoadPartWidth / 2.0, 0.0, 0.0 });
+
+	Road right_right_road{ kRightRightRoadFirstId };
+	right_right_road.LoadRoad();
+
+	for (size_t i = kRightRightRoadFirstId; i < kRightRightRoadFirstId + kRoadLength; i++)
+		engine.TranslateModel(i, Vertex3D{ kRoadPartWidth , 0.0, 0.0 });
+
+	Road left_left_road{ kLeftLeftRoadFirstId };
+	left_left_road.LoadRoad();
+
+	for (size_t i = kLeftLeftRoadFirstId; i < kLeftLeftRoadFirstId + kRoadLength; i++)
+		engine.TranslateModel(i, Vertex3D{ -kRoadPartWidth , 0.0, 0.0 });
+
+	//Rotate face cars
+	for (size_t i = kCommonModelsNumber; i < kMainCarId; i++)
+		engine.RotateModel(i, 180, Vector3D{0.0, 1.0, 0.0}, Vertex3D{0.0,0.0, 0.0});
+
+	//Translate MainCar to screen bottom
+	engine.TranslateModel(kMainCarId, kMainCarSpawn);
 
 }
 
@@ -155,12 +196,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	Engine& engine = Engine::Instance();
 
 	engine.CreateConsole("Log console");
+
 	engine.InitCuda();
 	engine.InitKeystrProcFunc(ProcessKeyboard);
 	engine.InitLogicFunc(LogicFunction);
 	engine.InitStartPosFunc(StartPosFunc);
 	engine.DefaultDir("D:\\C++\\ProjectEngine\\__obj_models\\");
-	engine.LoadModels( { "ColorTree.obj", "ColorTree.obj" , "ColorTree.obj", "ColorTree.obj", "ColorTree.obj", "ColorTree.obj" , "ColorTree.obj", "ColorTree.obj","DorogaNew.obj", "DorogaNew.obj" , "DorogaNew.obj" , "DorogaNew.obj" , "DorogaNew.obj" , "DorogaNew.obj", "DorogaNew.obj" , "DorogaNew.obj" , "DorogaNew.obj" , "DorogaNew.obj", "NewCar.obj"} );
+	
+	for (size_t i = 0; i < kTreesNumber; i++)
+		engine.LoadModels({ "ColorTree.obj" });
+
+	for (size_t i = 0; i < kCommonDisconRoadPartsNumber; i++)
+		engine.LoadModels({"DorogaNew.obj"});
+
+	for (size_t i = 0; i < kCommonSolidRoadPartsNumber; i++)
+		engine.LoadModels({"Doroga2.obj"});
+	
+	for (size_t i = 0; i < kNumberOfFaceCars; i++)
+		engine.LoadModels({"CarBlue.obj"});
+
+	// main car
+	engine.LoadModels({ "CarBlue.obj" });
+
 	engine.InitWindow(hInstance);
 	engine.StartMainLoop();
 	engine.ShowWindow();
