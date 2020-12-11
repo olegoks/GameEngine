@@ -75,7 +75,7 @@ void Engine::DefaultDir(const std::string& dir_path) const noexcept(true){
 void Engine::LoadModels(const std::initializer_list<std::string>& list) noexcept(true){
 
 	data_base_.IncludeObjFileName(list);
-	data_base_.LoadObjFiles();
+
 }
 
 void Engine::CreateConsole(const std::string& console_name) const noexcept(true){
@@ -116,11 +116,10 @@ void Engine::InitWindowSize(const size_t width, const size_t height) const noexc
 
 void Engine::StartMainLoop()noexcept(true){
 
-
-
 	main_window_.RegisterWindowClass();
 	main_window_.Create();
 
+	data_base_.LoadObjFiles();
 	LoadModelsToGpu();
 
 	graphic_engine_.PlugCamera(&camera_);
