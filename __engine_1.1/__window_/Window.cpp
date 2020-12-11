@@ -23,7 +23,7 @@ Window::Window()noexcept(true):
 	self_hWnd_{ nullptr }{}
 
 
-void Window::PushKeystroke(KeyType key)noexcept(true) {
+void Window::PushKeystroke(KeyAction key)noexcept(true) {
 
 	using namespace std::chrono;
 	high_resolution_clock::time_point now_time_point = high_resolution_clock::now();
@@ -41,22 +41,47 @@ LRESULT CALLBACK Window:: WndProc(HWND hWnd, UINT Message, WPARAM  wParam, LPARA
 
 	case WM_KEYDOWN: {
 
+
 		const unsigned int key = wParam;
+
+		const Action key_action = Action::Down;
 
 		switch (key) {
 
-			case VK_UP: { this_wnd->PushKeystroke(KeyType::ArrowUp); break; }
-			case VK_DOWN: { this_wnd->PushKeystroke(KeyType::ArrowDown); break; }
-			case VK_LEFT: { this_wnd->PushKeystroke(KeyType::ArrowLeft); break; };
-			case VK_RIGHT: { this_wnd->PushKeystroke(KeyType::ArrowRight); break; }
-			case VK_A: { this_wnd->PushKeystroke(KeyType::A); break; };
-			case VK_D: { this_wnd->PushKeystroke(KeyType::D); break; };
-			case VK_S: { this_wnd->PushKeystroke(KeyType::S); break; };
-			case VK_W: { this_wnd->PushKeystroke(KeyType::W); break; };
+		case VK_UP: { this_wnd->PushKeystroke(KeyAction{ Key::ArrowUp, key_action }); break; }
+		case VK_DOWN: { this_wnd->PushKeystroke(KeyAction{ Key::ArrowDown, key_action }); break; }
+		case VK_LEFT: { this_wnd->PushKeystroke(KeyAction{ Key::ArrowLeft, key_action }); break; };
+		case VK_RIGHT: { this_wnd->PushKeystroke(KeyAction{ Key::ArrowRight, key_action }); break; }
+		case VK_A: { this_wnd->PushKeystroke(KeyAction{ Key::A, key_action }); break; };
+		case VK_D: { this_wnd->PushKeystroke(KeyAction{ Key::D, key_action }); break; };
+		case VK_S: { this_wnd->PushKeystroke(KeyAction{ Key::S, key_action }); break; };
+		case VK_W: { this_wnd->PushKeystroke(KeyAction{ Key::W, key_action }); break; };
 
 		}
 		break;
 			
+	}
+
+	case WM_KEYUP: {
+
+		const unsigned int key = wParam;
+
+		const Action key_action = Action::Up;
+
+		switch (key) {
+
+		case VK_UP: { this_wnd->PushKeystroke(KeyAction{Key::ArrowUp, key_action}); break; }
+		case VK_DOWN: { this_wnd->PushKeystroke(KeyAction{ Key::ArrowDown, key_action }); break; }
+		case VK_LEFT: { this_wnd->PushKeystroke(KeyAction{ Key::ArrowLeft, key_action }); break; };
+		case VK_RIGHT: { this_wnd->PushKeystroke(KeyAction{ Key::ArrowRight, key_action }); break; }
+		case VK_A: { this_wnd->PushKeystroke(KeyAction{ Key::A, key_action }); break; };
+		case VK_D: { this_wnd->PushKeystroke(KeyAction{ Key::D, key_action }); break; };
+		case VK_S: { this_wnd->PushKeystroke(KeyAction{ Key::S, key_action }); break; };
+		case VK_W: { this_wnd->PushKeystroke(KeyAction{ Key::W, key_action }); break; };
+
+		}
+		break;
+
 	}
 
 	case WM_MOUSEWHEEL: {

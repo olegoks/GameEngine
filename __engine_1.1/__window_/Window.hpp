@@ -40,7 +40,7 @@ private:
 	KeystrokesQueue keystrokes_queue_;
 	Parametrs params_;
 
-	void PushKeystroke(KeyType key)noexcept(true);
+	void PushKeystroke(KeyAction key)noexcept(true);
 
 public:
 
